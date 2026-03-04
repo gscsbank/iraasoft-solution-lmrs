@@ -1,10 +1,39 @@
 // js/app.js
-console.log("LRMS Script Version: 3.0 - SURVIVAL MODE");
+console.log("LRMS Script Version: 3.1 - DIAGNOSTIC MODE");
 
-function setRestoreStatus(msg) {
+// UI Helper for status updates
+function setRestoreStatus(msg, isError = false) {
     console.log("STATUS:", msg);
     const el = document.getElementById('restoreStatus');
-    if (el) el.innerText = msg;
+    if (el) {
+        el.innerText = msg;
+        el.style.color = isError ? '#ef4444' : '#7c3aed';
+    }
+}
+
+// Proactive Database Health Check
+async function checkFirestoreHealth() {
+    console.log("Running Firestore Health Check...");
+    try {
+        // Try to write a small test document to a 'health_check' collection
+        const testRef = db.collection("health_check").doc("status");
+        await testRef.set({
+            lastChecked: new Date().toISOString(),
+            status: "OK"
+        });
+        console.log("Firestore Health: OK (Write Permission Verified)");
+        return true;
+    } catch (err) {
+        console.error("Firestore Health Check FAILED:", err);
+        if (err.code === 'permission-denied') {
+            const msg = "❌ DATABASE LOCKED: Your Firebase 'Test Mode' has expired (usually after 30 days). You must update your Rules in Firebase Console.";
+            setRestoreStatus(msg, true);
+            alert(msg + "\n\nPlease check the Walkthrough for instructions on how to fix this.");
+        } else {
+            setRestoreStatus("❌ Database Error: " + err.message, true);
+        }
+        return false;
+    }
 }
 
 // Hoisted Charts Function
@@ -307,7 +336,12 @@ async function importDatabase(jsonData) {
         return true;
     } catch (err) {
         console.error("V3 RESTORE FAILED:", err);
-        alert("❌ RESTORE FAILED\n\nError: " + err.message + "\n\nPlease check your internet and Firestore Rules.");
+        let msg = "❌ RESTORE FAILED\n\nError: " + err.message;
+        if (err.code === 'permission-denied') {
+            msg += "\n\nCRITICAL: Your Firestore Security Rules are blocking this action. Please update your Rules in the Firebase Console to allow 'write' access.";
+        }
+        alert(msg);
+        setRestoreStatus("Restore Failed.", true);
         return false;
     }
 }
