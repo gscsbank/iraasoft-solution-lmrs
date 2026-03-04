@@ -19,7 +19,7 @@ window.handleLogout = function () {
 // Initialize Firebase is handled in firebase-config.js
 // The global 'db' variable refers to firebase.firestore()
 
-console.log("LRMS Script Version: 1.2 - RECOVERY MODE");
+console.log("LRMS Script Version: 1.3 - HIGH-SPEED RESTORE");
 
 // Helper Function: Add new customer
 async function addCustomer(customerData) {
@@ -233,47 +233,32 @@ async function clearDatabase() {
 // Database Restore / Import (Be careful with batch limits)
 // Database Restore / Import (Be careful with batch limits)
 async function importDatabase(jsonData) {
-    console.log("Starting importDatabase process...");
+    console.log("Starting Batch Import process...");
     try {
         const data = JSON.parse(jsonData);
-        console.log("File parsed successfully.");
-
-        // Handle Dexie-style or custom formats
         const rawCustomers = data.customers || data.lrms_customers || (data.data ? data.data.customers : []) || [];
         const rawActions = data.actions || data.lrms_actions || (data.data ? data.data.actions : []) || [];
         const rawUsers = data.users || data.lrms_users || (data.data ? data.data.users : []) || [];
 
-        alert(`Backup file found: ${rawCustomers.length} customers and ${rawActions.length} actions.\nClick OK to begin Cloud Import.`);
+        alert(`Backup file parsed: ${rawCustomers.length} Customers, ${rawActions.length} Actions.\n\nClick OK to start high-speed Cloud Import.\nPlease wait for the "Success" message.`);
 
-        let importedCount = 0;
-        let skippedCount = 0;
+        const allItems = [];
+        rawCustomers.forEach(c => { delete c.id; allItems.push({ coll: 'customers', data: c }); });
+        rawActions.forEach(a => { delete a.id; allItems.push({ coll: 'actions', data: a }); });
 
-        // 1. Import Customers
-        for (const c of rawCustomers) {
-            if (c.accountNo) {
-                const cleanAcc = c.accountNo.toString().trim();
-                const existing = await getCustomerByAccountNo(cleanAcc);
-                if (!existing) {
-                    delete c.id;
-                    c.accountNo = cleanAcc;
-                    await db.collection("customers").add(c);
-                    importedCount++;
-                } else {
-                    skippedCount++;
-                    console.log(`Duplicate skipped: ${cleanAcc}`);
-                }
-            }
+        // 1. Batch Import Customers & Actions (Chunks of 400)
+        for (let i = 0; i < allItems.length; i += 400) {
+            const chunk = allItems.slice(i, i + 400);
+            const batch = db.batch();
+            chunk.forEach(item => {
+                const ref = db.collection(item.coll).doc();
+                batch.set(ref, item.data);
+            });
+            await batch.commit();
+            console.log(`Imported chunk ${i} to ${i + chunk.length}`);
         }
 
-        // 2. Import Actions
-        console.log("Importing actions...");
-        for (const a of rawActions) {
-            delete a.id;
-            await db.collection("actions").add(a);
-        }
-
-        // 3. Import Users
-        console.log("Importing users...");
+        // 2. Import Users (Small scale, usually doesn't need batching but safe)
         for (const u of rawUsers) {
             if (u.username) {
                 const norm = u.username.toLowerCase().trim();
@@ -286,11 +271,11 @@ async function importDatabase(jsonData) {
             }
         }
 
-        alert(`Import Finished!\n\nImported: ${importedCount}\nSkipped (Duplicates): ${skippedCount}\n\nThe system will now reload.`);
+        alert(`Restore Completed Successfully!\nTotal Records: ${allItems.length}\n\nSystem will now refresh.`);
         return true;
     } catch (err) {
-        console.error("CRITICAL IMPORT ERROR:", err);
-        alert("CRITICAL ERROR during restore: " + err.message + "\nCheck if the file is a valid JSON backup.");
+        console.error("BATCH IMPORT ERROR:", err);
+        alert("Restore Failed: " + err.message);
         return false;
     }
 }
