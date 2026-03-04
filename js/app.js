@@ -44,11 +44,12 @@ async function getAllCustomers() {
 
 // Helper Function: Get customer by Account No
 async function getCustomerByAccountNo(accountNo) {
-    if (!accountNo) return null;
+    if (!accountNo) { console.warn("getCustomerByAccountNo: empty acc"); return null; }
     try {
         const cleanAcc = accountNo.toString().trim();
-        if (!cleanAcc) return null;
+        console.log(`Checking Firestore for AccountNo: [${cleanAcc}]`);
         const snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
+        console.log(`Firestore result for [${cleanAcc}]: ${snapshot.empty ? 'Empty' : 'Found ' + snapshot.docs.length + ' doc(s)'}`);
         if (snapshot.empty) return null;
         const doc = snapshot.docs[0];
         return { id: doc.id, ...doc.data() };
@@ -203,36 +204,44 @@ async function exportDatabase() {
 // Database Restore / Import (Be careful with batch limits)
 // Database Restore / Import (Be careful with batch limits)
 async function importDatabase(jsonData) {
+    console.log("Starting importDatabase process...");
     try {
         const data = JSON.parse(jsonData);
+        console.log("File parsed successfully as JSON.");
 
         // Handle Dexie-style or custom formats
         const rawCustomers = data.customers || data.lrms_customers || (data.data ? data.data.customers : []);
         const rawActions = data.actions || data.lrms_actions || (data.data ? data.data.actions : []);
         const rawUsers = data.users || data.lrms_users || (data.data ? data.data.users : []);
 
-        console.log(`Importing: ${rawCustomers.length} customers...`);
+        console.log(`Detected in file: ${rawCustomers.length} customers, ${rawActions.length} actions, ${rawUsers.length} users.`);
 
         // 1. Import Customers (Skip existing to avoid "Account exists" errors later)
         for (const c of rawCustomers) {
             if (c.accountNo) {
                 const cleanAcc = c.accountNo.toString().trim();
+                console.log(`Checking duplicate during import for: ${cleanAcc}`);
                 const existing = await getCustomerByAccountNo(cleanAcc);
                 if (!existing) {
-                    delete c.id; // Let Firestore generate new ID
+                    delete c.id;
                     c.accountNo = cleanAcc;
                     await db.collection("customers").add(c);
+                    console.log(`Customer ${cleanAcc} imported.`);
+                } else {
+                    console.warn(`Skipping customer ${cleanAcc} - already exists in Cloud.`);
                 }
             }
         }
 
         // 2. Import Actions
+        console.log("Importing actions...");
         for (const a of rawActions) {
             delete a.id;
             await db.collection("actions").add(a);
         }
 
         // 3. Import Users
+        console.log("Importing users...");
         for (const u of rawUsers) {
             if (u.username) {
                 const norm = u.username.toLowerCase().trim();
@@ -241,13 +250,15 @@ async function importDatabase(jsonData) {
                     delete u.id;
                     u.username = norm;
                     await db.collection("users").add(u);
+                    console.log(`User ${norm} imported.`);
                 }
             }
         }
 
+        console.log("Import process completed successfully!");
         return true;
     } catch (err) {
-        console.error("Error importing database:", err);
+        console.error("CRITICAL IMPORT ERROR:", err);
         alert("Import Error: " + err.message);
         return false;
     }
