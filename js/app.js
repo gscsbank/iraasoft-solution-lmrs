@@ -19,14 +19,25 @@ window.handleLogout = function () {
 // Initialize Firebase is handled in firebase-config.js
 // The global 'db' variable refers to firebase.firestore()
 
+console.log("LRMS Script Version: 1.1 - LOADED");
+
 // Helper Function: Add new customer
 async function addCustomer(customerData) {
+    console.log("Checking for duplicate before adding:", customerData.accountNo);
     try {
+        const existing = await getCustomerByAccountNo(customerData.accountNo);
+        if (existing) {
+            console.warn("Duplicate found in Firestore:", customerData.accountNo);
+            alert("This Account Number already exists in the Cloud Database!");
+            return false;
+        }
         await db.collection("customers").add(customerData);
         console.log("Customer added successfully!");
+        alert("Customer successfully added to Cloud!");
         return true;
     } catch (error) {
-        console.error("Error adding customer:", error);
+        console.error("CRITICAL FIRESTORE ERROR (Add):", error);
+        alert("Firestore Error: " + error.message);
         return false;
     }
 }
