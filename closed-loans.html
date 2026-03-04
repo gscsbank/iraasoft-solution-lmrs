@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Closed Loans - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link active">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h2>Closed Loans Archive</h2>
+                <p>Historical records of fully recovered and settled loans</p>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+
+            <div class="card" style="height:100%;display:flex;flex-direction:column">
+                <div class="card-header" style="background:#fdfcff;flex-wrap:wrap;gap:16px">
+                    <div class="search-wrap" style="width:360px">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="searchInput" class="search-input"
+                            placeholder="Search archive by Account or Name...">
+                    </div>
+                    <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+                        <span style="font-size:0.8rem;font-weight:700;color:var(--text-secondary)">Total Archive:</span>
+                        <span class="pill pill-violet" id="closedCount">0</span>
+                    </div>
+                </div>
+
+                <div style="flex:1;overflow-y:auto">
+                    <table class="premium-table">
+                        <thead style="position:sticky;top:0;z-index:5">
+                            <tr>
+                                <th>Account No</th>
+                                <th>Customer Name</th>
+                                <th>Loan Details</th>
+                                <th>Settled Date</th>
+                                <th style="text-align:right">History</th>
+                            </tr>
+                        </thead>
+                        <tbody id="closedTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align:center;padding:40px;color:#9ca3af">Loading archive...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        let closedLoans = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            if (sessionStorage.getItem('lrms_role') === 'admin') {
+                document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+            }
+            setTimeout(fetchClosedLoans, 150);
+        });
+
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+
+        async function fetchClosedLoans() {
+            try {
+                const all = await getAllCustomers();
+                closedLoans = all.filter(c => c.status === 'Loan Closed');
+                closedLoans.sort((a, b) => new Date(b.statusDate || 0) - new Date(a.statusDate || 0));
+                document.getElementById('closedCount').innerText = closedLoans.length;
+                renderTable();
+            } catch (err) { console.error(err); }
+        }
+
+        function renderTable() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.getElementById('closedTableBody');
+            tbody.innerHTML = '';
+
+            let filtered = closedLoans;
+            if (query) {
+                filtered = closedLoans.filter(c =>
+                    c.name.toLowerCase().includes(query) ||
+                    c.accountNo.toLowerCase().includes(query)
+                );
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:120px;color:#9ca3af;font-style:italic">No records found.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(c => {
+                const amt = 'LKR ' + (c.loanAmount ? c.loanAmount.toLocaleString() : '0');
+                const closeDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                const tr = document.createElement('tr');
+                tr.onclick = () => window.location.href = `customer-detail.html?accountNo=${c.accountNo}`;
+                tr.innerHTML = `
+                    <td style="font-weight:700;color:var(--text-primary)">${c.accountNo}</td>
+                    <td style="font-weight:800;color:var(--text-primary)">${c.name}</td>
+                    <td>
+                        <div style="font-weight:600;color:var(--text-primary)">${amt}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted)">${c.category || 'N/A'}</div>
+                    </td>
+                    <td>
+                        <span class="badge badge-closed" style="background:#f0fdf4;color:#15803d;padding:4px 10px;font-size:0.7rem">
+                            ${closeDate}
+                        </span>
+                    </td>
+                    <td style="text-align:right">
+                        <button class="btn btn-ghost" style="color:var(--violet-600);background:var(--violet-50);padding:8px">
+                            <i data-lucide="file-text"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>

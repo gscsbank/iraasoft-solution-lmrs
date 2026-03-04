@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link active">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h2>System Settings</h2>
+                <p>Configure institution profile and preferences</p>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="card max-w-2xl" style="margin:0 auto">
+                <div class="card-header" style="background:var(--violet-50);border-bottom:none">
+                    <div class="stat-icon violet" style="width:40px;height:40px;border-radius:10px">
+                        <i data-lucide="building-2" style="width:20px"></i>
+                    </div>
+                    <h3 style="font-weight:800;font-size:1rem;color:var(--text-primary)">Institution Profile</h3>
+                </div>
+
+                <form id="settingsForm" class="card-body form-grid" style="padding:40px">
+                    <div class="form-group">
+                        <label class="form-label">Main Bank Name</label>
+                        <input type="text" id="bankName" class="form-input"
+                            placeholder="e.g. GALAPITIYAGAMA SANASA BANK">
+                        <p style="font-size:0.7rem;color:var(--text-muted);margin-top:6px">Appears as primary header in
+                            all reports.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Branch Name</label>
+                        <input type="text" id="branchName" class="form-input" placeholder="e.g. Main Branch">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Internal System Name</label>
+                        <input type="text" id="systemName" class="form-input"
+                            placeholder="e.g. Loan Recovery Management System">
+                        <p style="font-size:0.7rem;color:var(--text-muted);margin-top:6px">Subtitle in reports and
+                            printouts.</p>
+                    </div>
+
+                    <div style="margin-top:20px;display:flex;justify-content:flex-end">
+                        <button type="submit" class="btn btn-primary"
+                            style="padding:12px 30px;box-shadow:var(--shadow-lg)">
+                            <i data-lucide="save"></i> Save System Profile
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Success Toast -->
+    <div id="toast" class="hidden"
+        style="position:fixed;bottom:40px;right:40px;background:var(--violet-800);color:#fff;padding:16px 24px;border-radius:16px;box-shadow:var(--shadow-2xl);display:flex;align-items:center;gap:12px;z-index:100;animation:slideUp 0.3s ease-out">
+        <i data-lucide="check-circle" style="color:var(--emerald-400)"></i>
+        <span style="font-weight:600">Settings saved successfully!</span>
+    </div>
+
+    <style>
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script src="js/app.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            if (sessionStorage.getItem('lrms_role') !== 'admin') {
+                alert("Unauthorized.");
+                window.location.replace('index.html');
+                return;
+            }
+            lucide.createIcons();
+
+            const s = JSON.parse(localStorage.getItem('lrms_settings') || '{}');
+            document.getElementById('bankName').value = s.bankName || 'GALAPITIYAGAMA SANASA BANK';
+            document.getElementById('branchName').value = s.branchName || '';
+            document.getElementById('systemName').value = s.systemName || 'Loan Recovery Management System';
+        });
+
+        document.getElementById('settingsForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const config = {
+                bankName: document.getElementById('bankName').value,
+                branchName: document.getElementById('branchName').value,
+                systemName: document.getElementById('systemName').value
+            };
+            localStorage.setItem('lrms_settings', JSON.stringify(config));
+            if (config.bankName) document.getElementById('sidebarVersion').innerText = config.bankName + ' v1.0';
+
+            const t = document.getElementById('toast');
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 3000);
+        });
+    </script>
+</body>
+
+</html>

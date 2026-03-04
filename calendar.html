@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e5e7eb;
+            border: 1px solid #e5e7eb;
+        }
+
+        .calendar-day {
+            min-height: 120px;
+            background: white;
+            padding: 8px;
+            transition: all 0.2s;
+        }
+
+        .calendar-day:hover {
+            background: #f9fafb;
+        }
+
+        .day-header {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #6b7280;
+            text-align: center;
+            padding: 8px;
+            background: #f3f4f6;
+        }
+
+        .today {
+            background: #f5f3ff !important;
+        }
+
+        .today .day-number {
+            background: #7c3aed;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .event-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            display: block;
+        }
+
+        .event-normal {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .event-legal {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .event-risk {
+            background: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link active">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="top-header">
+            <div>
+                <h2 id="currentMonthYear">Recovery Calendar</h2>
+                <p>Track follow-up schedules visually</p>
+            </div>
+            <div style="display:flex;gap:10px">
+                <button onclick="changeMonth(-1)" class="btn btn-slate"><i data-lucide="chevron-left"></i></button>
+                <button onclick="goToToday()" class="btn btn-slate">Today</button>
+                <button onclick="changeMonth(1)" class="btn btn-slate"><i data-lucide="chevron-right"></i></button>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div class="card overflow-hidden">
+                <div class="calendar-grid">
+                    <div class="day-header">SUN</div>
+                    <div class="day-header">MON</div>
+                    <div class="day-header">TUE</div>
+                    <div class="day-header">WED</div>
+                    <div class="day-header">THU</div>
+                    <div class="day-header">FRI</div>
+                    <div class="day-header">SAT</div>
+                </div>
+                <div id="calendarDays" class="calendar-grid">
+                    <!-- Days will be injected here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        let currentYear, currentMonth;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            currentYear = now.getFullYear();
+            currentMonth = now.getMonth();
+            renderCalendar();
+            lucide.createIcons();
+        });
+
+        async function renderCalendar() {
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const today = new Date();
+
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            document.getElementById('currentMonthYear').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
+            const daysContainer = document.getElementById('calendarDays');
+            daysContainer.innerHTML = '';
+
+            // Get all actions for this month
+            const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+            const endStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
+
+            const snapshot = await db.collection("actions")
+                .where('followUpDate', '>=', startStr)
+                .where('followUpDate', '<=', endStr)
+                .get();
+            const actions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Padding days
+            for (let i = 0; i < firstDay; i++) {
+                const div = document.createElement('div');
+                div.className = 'calendar-day bg-gray-50';
+                daysContainer.appendChild(div);
+            }
+
+            // Month days
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const div = document.createElement('div');
+                div.className = 'calendar-day';
+                if (today.getFullYear() === currentYear && today.getMonth() === currentMonth && today.getDate() === d) {
+                    div.classList.add('today');
+                }
+
+                div.innerHTML = `<div class="day-number font-bold text-sm mb-2">${d}</div>`;
+
+                const dailyActions = actions.filter(a => a.followUpDate === dateStr);
+                for (const action of dailyActions) {
+                    const customer = await getCustomerByAccountNo(action.customerAccountNo);
+                    const name = customer ? customer.name : 'Unknown';
+                    const typeClass = action.actionType.includes('Legal') ? 'event-legal' : (action.actionType.includes('High Risk') ? 'event-risk' : 'event-normal');
+
+                    const span = document.createElement('span');
+                    span.className = `event-badge ${typeClass}`;
+                    span.innerText = name;
+                    span.title = `${name}: ${action.actionType}`;
+                    span.onclick = () => window.location.href = `customer-detail.html?accountNo=${action.customerAccountNo}`;
+                    div.appendChild(span);
+                }
+
+                daysContainer.appendChild(div);
+            }
+        }
+
+        function changeMonth(dir) {
+            currentMonth += dir;
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            renderCalendar();
+        }
+
+        function goToToday() {
+            const now = new Date();
+            currentYear = now.getFullYear();
+            currentMonth = now.getMonth();
+            renderCalendar();
+        }
+    </script>
+</body>
+
+</html>

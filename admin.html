@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link active">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h2>User Management</h2>
+                <p>Manage system access and roles</p>
+            </div>
+            <button onclick="toggleAddModal()" class="btn btn-primary">
+                <i data-lucide="user-plus"></i> Add New User
+            </button>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <div class="card max-w-4xl" style="margin:0 auto">
+                <table class="premium-table">
+                    <thead>
+                        <tr>
+                            <th>User Profile</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <!-- Populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Modal -->
+    <div id="addModal" class="modal hidden">
+        <div class="modal-overlay" onclick="toggleAddModal()"></div>
+        <div class="modal-content" style="max-width:420px">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <button class="modal-close" onclick="toggleAddModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm" class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="addName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="addUsername" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="addPassword" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Role</label>
+                        <select id="addRole" class="form-select">
+                            <option value="user">Standard User</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="padding-top:20px">
+                <button type="submit" form="addUserForm" class="btn btn-primary w-full shadow-lg">Create
+                    Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PW Modal -->
+    <div id="pwModal" class="modal hidden">
+        <div class="modal-overlay" onclick="togglePwModal()"></div>
+        <div class="modal-content" style="max-width:380px">
+            <div class="modal-header">
+                <h3>Reset Password</h3>
+                <button class="modal-close" onclick="togglePwModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p id="pwModalUser" style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px"></p>
+                <form id="changePwForm">
+                    <input type="hidden" id="pwUserId">
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" id="newPassword" class="form-input" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="padding-top:16px;gap:12px;display:grid;grid-template-columns:1fr 1fr">
+                <button onclick="togglePwModal()" class="btn btn-ghost">Cancel</button>
+                <button type="submit" form="changePwForm" class="btn btn-primary">Save PW</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            if (sessionStorage.getItem('lrms_role') !== 'admin') {
+                alert("Restricted area.");
+                window.location.replace('index.html');
+                return;
+            }
+            lucide.createIcons();
+            renderUsers();
+        });
+
+        function toggleAddModal() {
+            const m = document.getElementById('addModal');
+            m.classList.toggle('hidden');
+            if (!m.classList.contains('hidden')) m.querySelector('input').focus();
+        }
+
+        function togglePwModal(id = null, username = '') {
+            const m = document.getElementById('pwModal');
+            m.classList.toggle('hidden');
+            if (id) {
+                document.getElementById('pwUserId').value = id;
+                document.getElementById('pwModalUser').innerText = `Change password for ${username}`;
+                m.querySelector('input').focus();
+            }
+        }
+
+        async function renderUsers() {
+            const users = await getAllUsers();
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+            const sessionUser = sessionStorage.getItem('lrms_user');
+
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                const isSelf = u.name === sessionUser || u.username === 'admin';
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight:800;color:var(--text-primary)">${u.name}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted)">ID: ${u.id}</div>
+                    </td>
+                    <td><span class="pill pill-violet" style="font-size:0.75rem">@${u.username}</span></td>
+                    <td>
+                        <span class="badge ${u.role === 'admin' ? 'badge-legal' : 'badge-normal'}" style="font-size:0.65rem;border:none">
+                            ${u.role.toUpperCase()}
+                        </span>
+                    </td>
+                    <td style="text-align:right">
+                        <button onclick="togglePwModal('${u.id}', '${u.username}')" class="btn btn-ghost" style="color:var(--amber-600);opacity:0.6">
+                            <i data-lucide="key-round" style="width:16px"></i>
+                        </button>
+                        ${isSelf ? '' : `
+                        <button onclick="handleDelete('${u.id}')" class="btn btn-ghost" style="color:var(--red-600);opacity:0.6">
+                            <i data-lucide="trash-2" style="width:16px"></i>
+                        </button>`}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('addName').value,
+                username: document.getElementById('addUsername').value.trim(),
+                password: document.getElementById('addPassword').value,
+                role: document.getElementById('addRole').value
+            };
+            if (await addUser(data)) { toggleAddModal(); renderUsers(); }
+            else alert("Username exists.");
+        });
+
+        async function handleDelete(id) {
+            if (confirm("Delete user?")) {
+                if (await deleteUser(id)) renderUsers();
+            }
+        }
+
+        document.getElementById('changePwForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('pwUserId').value;
+            if (await changeUserPassword(id, document.getElementById('newPassword').value)) {
+                alert("Saved.");
+                togglePwModal();
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Actions - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+                font-size: 10pt;
+            }
+
+            .sidebar,
+            .no-print {
+                display: none !important;
+            }
+
+            .content-area {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border-radius: 0 !important;
+                overflow: visible !important;
+            }
+
+            .premium-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                border: 1px solid #000 !important;
+                border-radius: 0 !important;
+            }
+
+            .premium-table thead tr {
+                background: transparent !important;
+            }
+
+            .premium-table th {
+                background: #eee !important;
+                color: #000 !important;
+                border: 1px solid #000 !important;
+                border-radius: 0 !important;
+                -webkit-filter: grayscale(100%);
+                filter: grayscale(100%);
+            }
+
+            .premium-table td {
+                border: 1px solid #000 !important;
+                color: #000 !important;
+            }
+
+            .badge {
+                border: 1px solid #000 !important;
+                background: transparent !important;
+                color: #000 !important;
+                padding: 2px 4px !important;
+                -webkit-filter: grayscale(100%);
+                filter: grayscale(100%);
+            }
+
+            .main-content {
+                overflow: visible !important;
+                height: auto !important;
+                position: static !important;
+                display: block !important;
+            }
+
+            body {
+                overflow: visible !important;
+                height: auto !important;
+            }
+
+            .print-only {
+                display: block !important;
+                color: black !important;
+            }
+
+            .signature-grid {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 60px;
+                text-align: center;
+                margin-top: 50px;
+            }
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 1cm;
+        }
+
+        .print-only {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link active">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header no-print">
+            <div>
+                <h2>Legal Action Tracking</h2>
+                <p>Customers routed to Cooperative Commissioner or Courts</p>
+            </div>
+            <button onclick="window.print()" class="btn btn-slate">
+                <i data-lucide="printer"></i> Print Target List
+            </button>
+        </header>
+
+        <!-- Print Header -->
+        <div class="print-only" style="text-align:center;padding:20px;border-bottom:2px solid #000;margin-bottom:20px">
+            <h1 style="font-size:1.5rem;font-weight:800">GALAPITIYAGAMA SANASA BANK</h1>
+            <h2 style="font-size:1.2rem;font-weight:700">Legal Action Target List Summary</h2>
+            <p style="font-size:0.8rem;margin-top:10px">Report Generated: <span id="printDate"></span></p>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+
+            <!-- Filters & Search -->
+            <div class="card no-print" style="margin-bottom:24px">
+                <div class="card-body">
+                    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end">
+                        <div style="flex:1;min-width:260px">
+                            <label class="form-label">Filter by Stage</label>
+                            <select id="legalFilter" onchange="loadLegalData()" class="form-select"
+                                style="background:#fff">
+                                <option value="All">All Legal Actions</option>
+                                <option value="Legal Action - Courts">Courts Only</option>
+                                <option value="Legal Action - Cooperative Commissioner">Cooperative Commissioner Only
+                                </option>
+                            </select>
+                        </div>
+                        <div style="flex:2;min-width:300px">
+                            <div class="search-wrap">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="searchInput"
+                                    placeholder="Search by name, account or guarantor..." class="search-input"
+                                    style="padding-top:10px;padding-bottom:10px">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="overflow-x:auto">
+                    <table class="premium-table">
+                        <thead>
+                            <tr style="background:var(--violet-50)">
+                                <th style="width:60px;text-align:center">#</th>
+                                <th>Customer Details</th>
+                                <th>Loan &amp; Category</th>
+                                <th>Guarantors</th>
+                                <th>Legal Status &amp; Date</th>
+                                <th style="text-align:right" class="no-print">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="legalTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align:center;padding:40px;color:#9ca3af">Loading legal
+                                    records...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Print Footer -->
+                <div class="print-only signature-grid">
+                    <div>
+                        <div style="border-top:1px solid #000;margin-bottom:8px"></div>
+                        <p style="font-weight:700">Prepared By (Loan Officer)</p>
+                    </div>
+                    <div>
+                        <div style="border-top:1px solid #000;margin-bottom:8px"></div>
+                        <p style="font-weight:700">Approved By (Chairman / Manager)</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        let legalCustomers = [];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            document.getElementById('printDate').innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+            if (sessionStorage.getItem('lrms_role') === 'admin') {
+                document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+            }
+            setTimeout(fetchLegalData, 150);
+        });
+
+        document.getElementById('searchInput').addEventListener('input', loadLegalData);
+
+        async function fetchLegalData() {
+            try {
+                const allCust = await getAllCustomers();
+                legalCustomers = allCust.filter(c => c.status && c.status.includes('Legal Action'));
+                loadLegalData();
+            } catch (err) { console.error(err); }
+        }
+
+        function loadLegalData() {
+            const filterVal = document.getElementById('legalFilter').value;
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            let displayList = legalCustomers;
+
+            if (filterVal !== "All") displayList = displayList.filter(c => c.status === filterVal);
+            if (query) {
+                displayList = displayList.filter(c =>
+                    c.name.toLowerCase().includes(query) ||
+                    c.accountNo.toLowerCase().includes(query) ||
+                    (c.guarantor1 && c.guarantor1.toLowerCase().includes(query)) ||
+                    (c.guarantor2 && c.guarantor2.toLowerCase().includes(query))
+                );
+            }
+            displayList.sort((a, b) => new Date(b.statusDate || 0) - new Date(a.statusDate || 0));
+            renderTable(displayList);
+        }
+
+        function renderTable(list) {
+            const tbody = document.getElementById('legalTableBody');
+            tbody.innerHTML = '';
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:80px;color:#9ca3af;font-style:italic">No legal records found.</td></tr>`;
+                return;
+            }
+
+            list.forEach((c, i) => {
+                const guar = [c.guarantor1, c.guarantor2].filter(Boolean).join('<div style="height:1px;background:#f1f5f9;margin:4px 0"></div>');
+                const sDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                const amt = 'LKR ' + (c.loanAmount ? c.loanAmount.toLocaleString() : '0');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center;font-weight:700;color:var(--text-muted)">${i + 1}</td>
+                    <td>
+                        <div style="font-weight:800;color:var(--text-primary)">${c.name}</div>
+                        <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${c.accountNo}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight:800;color:var(--text-primary)">${amt}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted)">${c.category || 'N/A'} &bull; ${c.interestRate}% Int.</div>
+                    </td>
+                    <td style="font-size:0.75rem;color:var(--text-secondary);max-width:240px">
+                        ${guar || 'None recorded'}
+                    </td>
+                    <td>
+                        <span class="badge badge-legal" style="background:#fff1f2;padding:4px 10px;font-size:0.65rem;letter-spacing:0.02em">
+                            ${c.status.replace('Legal Action - ', '')}
+                        </span>
+                        <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:4px">
+                            <i data-lucide="calendar" style="width:12px;height:12px"></i> Started: ${sDate}
+                        </div>
+                    </td>
+                    <td style="text-align:right" class="no-print">
+                        <button onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'" class="btn btn-ghost" style="padding:8px;color:var(--violet-600);background:var(--violet-50)">
+                            <i data-lucide="arrow-right"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>

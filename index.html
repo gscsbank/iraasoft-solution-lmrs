@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LRMS Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+
+        body.modal-active {
+            overflow: hidden !important;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link active">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <button onclick="handleBackup()" class="sidebar-bottom-btn">
+                <i data-lucide="download-cloud" style="width:16px;height:16px;color:#6ee7b7;flex-shrink:0"></i>
+                Backup Data
+            </button>
+            <div style="position:relative">
+                <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="handleRestore(event)">
+                <button onclick="document.getElementById('restoreFile').click()" class="sidebar-bottom-btn">
+                    <i data-lucide="upload-cloud" style="width:16px;height:16px;color:#fcd34d;flex-shrink:0"></i>
+                    Restore Data
+                </button>
+            </div>
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out" style="width:16px;height:16px"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h2>Customers Dashboard</h2>
+                <p>Manage non-performing loans &amp; recovery actions</p>
+            </div>
+            <div style="margin-left:auto; text-align:right; margin-right:20px" class="no-print">
+                <div id="currentDate"
+                    style="font-size:0.8rem; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.05em">
+                    Loading Date...</div>
+                <div id="currentTime" style="font-size:1.2rem; font-weight:800; color:#1e1b4b">00:00:00</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+                <button onclick="toggleModal()" class="btn btn-primary">
+                    <i data-lucide="user-plus"></i> Add Customer
+                </button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="content-area">
+
+            <!-- Stat Cards -->
+            <div class="stat-grid">
+                <div class="stat-card violet">
+                    <div class="stat-icon violet">
+                        <i data-lucide="users" style="width:22px;height:22px"></i>
+                    </div>
+                    <div>
+                        <div class="stat-label">Total Customers</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                    </div>
+                </div>
+                <div class="stat-card amber">
+                    <div class="stat-icon amber">
+                        <i data-lucide="alert-triangle" style="width:22px;height:22px"></i>
+                    </div>
+                    <div>
+                        <div class="stat-label">High Risk</div>
+                        <div class="stat-value" id="stat-risk">0</div>
+                    </div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-icon red">
+                        <i data-lucide="scale" style="width:22px;height:22px"></i>
+                    </div>
+                    <div>
+                        <div class="stat-label">Legal Action</div>
+                        <div class="stat-value" id="stat-legal">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i data-lucide="pie-chart" style="width:18px;height:18px;color:#7c3aed"></i> Loan Status
+                            </h3>
+                        </div>
+                        <div class="card-body"
+                            style="height: 220px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i data-lucide="bar-chart-3" style="width:18px;height:18px;color:#7c3aed"></i>
+                                Categories</h3>
+                        </div>
+                        <div class="card-body"
+                            style="height: 220px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <!-- Mini Follow-ups/Stats can go here or keep it simple -->
+            </div>
+
+            <!-- Customer Table -->
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header">
+                    <h3><i data-lucide="list" style="width:18px;height:18px;color:#7c3aed"></i> Customer List</h3>
+                    <div class="search-wrap" style="width:250px">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search Name/Acc…">
+                    </div>
+                    <div class="filter-wrap" style="width:180px">
+                        <select id="statusFilter" class="form-select" onchange="loadTableData()"
+                            style="height:38px; font-size:0.875rem; border-radius:10px; border:1px solid #e5e7eb; padding:0 12px; font-weight:500; color:#4b5563; outline:none; cursor:pointer">
+                            <option value="all">All Statuses</option>
+                            <option value="Normal">Normal</option>
+                            <option value="High Risk">High Risk</option>
+                            <option value="Legal Action">Legal Action</option>
+                            <option value="Loan Closed">Loan Closed</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="premium-table">
+                        <thead>
+                            <tr style="background:var(--violet-50)">
+                                <th style="width:40px;text-align:center"><input type="checkbox" id="selectAll"></th>
+                                <th style="width:50px;text-align:center">#</th>
+                                <th>Account</th>
+                                <th>Loan Info</th>
+                                <th style="text-align:center">Status</th>
+                                <th style="text-align:center" class="no-print">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align:center;padding:32px;color:#9ca3af">Loading data…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="bulkActionBar"
+                class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white shadow-2xl border border-violet-100 px-6 py-4 rounded-full hidden items-center gap-4 z-50">
+                <span id="bulkCountText" class="text-sm font-bold text-violet-700">0 selected</span>
+                <div class="h-6 w-px bg-gray-200"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Template:</span>
+                    <select id="bulkTemplate"
+                        class="text-xs font-bold text-violet-600 bg-violet-50 border-none rounded-md px-2 py-1 cursor-pointer outline-none">
+                        <option value="normal">Normal Reminder</option>
+                        <option value="legal">Legal Warning</option>
+                    </select>
+                </div>
+                <div class="h-6 w-px bg-gray-200"></div>
+                <button onclick="handleBulkAction('whatsapp')"
+                    class="flex items-center gap-2 text-sm font-bold text-green-600 hover:text-green-700">
+                    <i data-lucide="message-circle" style="width:18px;height:18px"></i> Bulk WhatsApp
+                </button>
+                <button onclick="handleBulkAction('sms')"
+                    class="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700">
+                    <i data-lucide="smartphone" style="width:18px;height:18px"></i> Bulk SMS
+                </button>
+                <div class="h-6 w-px bg-gray-200"></div>
+                <button onclick="goToBulkMessenger()"
+                    class="flex items-center gap-2 text-sm font-bold text-violet-600 hover:text-violet-700">
+                    <i data-lucide="send" style="width:18px;height:18px"></i> Custom Messenger
+                </button>
+                <button onclick="clearSelection()"
+                    class="text-xs font-bold text-gray-400 hover:text-gray-600 cursor-pointer">Cancel</button>
+            </div>
+
+            <!-- Follow-up Alerts -->
+            <div class="card">
+                <div class="card-header">
+                    <h3><i data-lucide="bell-ring" style="width:18px;height:18px;color:#e11d48"></i> Pending Follow-ups
+                    </h3>
+                    <span class="pill pill-rose" id="followUpCount">0 Due</span>
+                </div>
+                <div class="card-body">
+                    <div id="followUpContainer">
+                        <div style="color:#9ca3af;font-size:0.875rem;text-align:center;padding:16px;font-style:italic">
+                            No follow-ups due today.</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Add Customer Modal -->
+    <div
+        class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-slate-900/40 backdrop-blur-sm"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-2xl mx-auto rounded-2xl shadow-2xl z-50 overflow-y-auto"
+            style="max-height:90vh">
+            <div class="modal-content py-6 text-left px-8">
+                <div
+                    style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #ede9fe;margin-bottom:20px">
+                    <p
+                        style="font-family:'Poppins',sans-serif;font-size:1.1rem;font-weight:700;color:#1e1b4b;display:flex;align-items:center;gap:8px">
+                        <i data-lucide="user-plus" style="width:20px;height:20px;color:#7c3aed"></i>
+                        Add New Customer
+                    </p>
+                    <div class="modal-close cursor-pointer z-50" onclick="toggleModal()"
+                        style="color:#9ca3af;padding:6px;border-radius:8px;transition:all .2s">
+                        <i data-lucide="x" style="width:22px;height:22px"></i>
+                    </div>
+                </div>
+
+                <form id="addCustomerForm" class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label">Account Number <span style="color:#ef4444">*</span></label>
+                            <input type="text" id="accNo" required class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Customer Name <span style="color:#ef4444">*</span></label>
+                            <input type="text" id="custName" required class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Loan Granted Date <span style="color:#ef4444">*</span></label>
+                            <input type="date" id="loanDate" required class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Loan Amount (LKR) <span style="color:#ef4444">*</span></label>
+                            <input type="number" id="loanAmount" required class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Interest Rate (%) <span style="color:#ef4444">*</span></label>
+                            <input type="number" step="0.01" id="interestRate" required class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Loan Category</label>
+                            <select id="loanCategory" class="form-select">
+                                <option>Festival Loan</option>
+                                <option>Athwela Team Loan</option>
+                                <option>Equipment Loan</option>
+                                <option>Long Term Loan</option>
+                                <option>Suhuru Farm Loan</option>
+                                <option>Business Loan</option>
+                                <option>Sap Loan</option>
+                                <option>Athamaru Loan</option>
+                                <option>General Loan</option>
+                                <option>Swashakthi Loan 02</option>
+                                <option>Swashakthi Loan 01</option>
+                                <option>Instant Loan</option>
+                                <option>Usawigatha Loan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Initial Status</label>
+                            <select id="initialStatus" class="form-select">
+                                <option value="Normal">Normal</option>
+                                <option value="High Risk">High Risk</option>
+                                <option value="Legal Action - Cooperative Commissioner">Legal Action - Cooperative
+                                    Commissioner</option>
+                                <option value="Legal Action - Courts">Legal Action - Courts</option>
+                                <option value="Loan Closed">Loan Closed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Guarantor 1 (Name &amp; ID)</label>
+                            <input type="text" id="guarantor1" placeholder="e.g. Nimal (ID: 92…)" class="form-input">
+                        </div>
+                        <div>
+                            <label class="form-label">Guarantor 2 (Name &amp; ID)</label>
+                            <input type="text" id="guarantor2" placeholder="e.g. Kamal (ID: 88…)" class="form-input">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" id="phoneNumber" placeholder="e.g. 077 123 4567" class="form-input">
+                        </div>
+                    </div>
+
+                    <div
+                        style="display:flex;justify-content:flex-end;gap:10px;padding-top:16px;border-top:1px solid #ede9fe">
+                        <button type="button" onclick="toggleModal()" class="btn btn-ghost">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i data-lucide="save"></i> Save Customer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Logic -->
+    <script src="js/app.js"></script>
+    <script>
+        lucide.createIcons();
+
+        const overlay = document.querySelector('.modal-overlay');
+        overlay.addEventListener('click', toggleModal);
+
+        function toggleModal() {
+            const body = document.querySelector('body');
+            const modal = document.querySelector('.modal');
+            modal.classList.toggle('opacity-0');
+            modal.classList.toggle('pointer-events-none');
+            body.classList.toggle('modal-active');
+            if (modal.classList.contains('opacity-0')) {
+                document.getElementById('addCustomerForm').reset();
+            }
+        }
+
+        document.getElementById('addCustomerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const customerData = {
+                accountNo: document.getElementById('accNo').value,
+                name: document.getElementById('custName').value,
+                loanDate: document.getElementById('loanDate').value,
+                loanAmount: parseFloat(document.getElementById('loanAmount').value),
+                interestRate: parseFloat(document.getElementById('interestRate').value),
+                category: document.getElementById('loanCategory').value,
+                status: document.getElementById('initialStatus').value,
+                statusDate: new Date().toISOString().split('T')[0],
+                guarantor1: document.getElementById('guarantor1').value,
+                guarantor2: document.getElementById('guarantor2').value,
+                phone: document.getElementById('phoneNumber').value.trim()
+            };
+            const existing = await getCustomerByAccountNo(customerData.accountNo);
+            if (existing) { alert("Account Number already exists!"); return; }
+            const success = await addCustomer(customerData);
+            if (success) { toggleModal(); loadTableData(); }
+            else alert("Failed to add customer.");
+        });
+
+        async function loadTableData() {
+            const customers = await getAllCustomers();
+            const tbody = document.getElementById('customerTableBody');
+            tbody.innerHTML = '';
+            let total = 0, risk = 0, legal = 0;
+
+            const filterQuery = document.getElementById('searchInput').value.toLowerCase();
+            const statusF = document.getElementById('statusFilter').value;
+
+            const filtered = customers.filter(c => {
+                const matchesSearch = c.accountNo.toLowerCase().includes(filterQuery) ||
+                    c.name.toLowerCase().includes(filterQuery);
+                const matchesStatus = statusF === 'all' || c.status.toLowerCase().includes(statusF.toLowerCase());
+
+                const match = matchesSearch && matchesStatus;
+                if (match) { total++; if (c.status.includes('High Risk')) risk++; if (c.status.includes('Legal Action')) legal++; }
+                return match;
+            });
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-risk').innerText = risk;
+            document.getElementById('stat-legal').innerText = legal;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:#9ca3af">No records found.</td></tr>`;
+                loadFollowUps(); return;
+            }
+
+            filtered.forEach((c, idx) => {
+                let badgeClass = 'badge badge-normal';
+                if (c.status.includes('High Risk')) badgeClass = 'badge badge-risk';
+                if (c.status.includes('Legal Action')) badgeClass = 'badge badge-legal';
+                if (c.status === 'Loan Closed') badgeClass = 'badge badge-closed';
+
+                const amt = 'LKR ' + c.loanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="customer-check" data-account="${c.accountNo}" onchange="updateBulkSelection()">
+                    </td>
+                    <td style="text-align:center;color:#9ca3af;font-size:0.8rem">${idx + 1}</td>
+                    <td style="font-weight:700;color:#1e1b4b" onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'" class="cursor-pointer">${c.accountNo}</td>
+                    <td style="font-weight:500" onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'" class="cursor-pointer">${c.name}</td>
+                    <td>
+                        <div style="font-weight:600;color:#1e1b4b">${amt}</div>
+                        <div style="font-size:0.75rem;color:#6b7280">${c.category} &bull; ${c.interestRate}% Int.</div>
+                    </td>
+                    <td><span class="${badgeClass}">${c.status}</span></td>
+                    <td style="text-align:right">
+                        <button onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'"
+                            style="padding:6px 8px;border-radius:8px;color:#7c3aed;background:#f5f3ff;border:none;cursor:pointer;opacity:1;transition:all .2s"
+                            class="row-action-btn">
+                            <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
+                        </button>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+
+            loadFollowUps();
+            lucide.createIcons();
+            updateBulkSelection();
+        }
+
+        // ---- Bulk Actions ----
+        function updateBulkSelection() {
+            const checks = document.querySelectorAll('.customer-check:checked');
+            const bar = document.getElementById('bulkActionBar');
+            const countText = document.getElementById('bulkCountText');
+
+            if (checks.length > 0) {
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+                countText.innerText = `${checks.length} selected`;
+            } else {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+        }
+
+        function goToBulkMessenger() {
+            const checks = document.querySelectorAll('.customer-check:checked');
+            const accounts = Array.from(checks).map(c => c.getAttribute('data-account'));
+            if (accounts.length > 0) {
+                localStorage.setItem('selected_bulk_accounts', JSON.stringify(accounts));
+            } else {
+                localStorage.removeItem('selected_bulk_accounts');
+            }
+            window.location.href = 'bulk-messenger.html';
+        }
+
+        // Add event listener to sidebar link for Bulk Messenger
+        document.querySelectorAll('a[href="bulk-messenger.html"]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                goToBulkMessenger();
+            });
+        });
+
+        document.getElementById('searchInput').addEventListener('input', () => loadTableData());
+
+        async function handleBulkAction(type) {
+            const checks = document.querySelectorAll('.customer-check:checked');
+            const accounts = Array.from(checks).map(c => c.getAttribute('data-account'));
+            const customers = await getAllCustomers();
+            const selected = customers.filter(c => accounts.includes(c.accountNo));
+
+            if (selected.length === 0) return;
+            const template = document.getElementById('bulkTemplate').value;
+
+            if (confirm(`Send bulk ${type.toUpperCase()} messages to ${selected.length} customers?`)) {
+                for (const c of selected) {
+                    if (!c.phone) continue;
+                    const cleanPhone = c.phone.replace(/\D/g, '');
+                    const bankContact = "0372260658";
+
+                    let messageText = "";
+                    if (type === 'whatsapp') {
+                        if (template === 'legal') {
+                            messageText = `*Final Legal Notice (අවසාන නීති නිවේදනය)*\n\nDear ${c.name},\nThis is a final warning regarding your significantly overdue loan account *${c.accountNo}*. Despite previous reminders, you have failed to settle the outstanding amount. Please be advised that if payment is not received within two days, we will have to initiate formal legal action through the Cooperative Commissioner without further notice. This may result in additional costs and legal complications for you.\n\nImmediate contact is required: ${bankContact} Galapitiyagama Sanasa Bank.`;
+                        } else {
+                            messageText = `*Loan Recovery Reminder*\n\nDear ${c.name},\nThis is a friendly reminder regarding your loan account *${c.accountNo}* at Galapitiyagama Sanasa Bank.\n\nFor more information, contact us: ${bankContact}\n\nThank you.`;
+                        }
+                        const message = encodeURIComponent(messageText);
+                        window.open(`https://wa.me/${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=${message}`, '_blank');
+                    } else {
+                        if (template === 'legal') {
+                            messageText = `FINAL WARNING: Dear ${c.name}, Your loan ${c.accountNo} is overdue. If not settled in 2 days, legal action will be taken through Cooperative Commissioner. Call: ${bankContact}`;
+                        } else {
+                            messageText = `Loan Reminder: Dear ${c.name}, Reminder for loan ${c.accountNo}. Please settle overdue payments soon. Call: ${bankContact} GSCS Bank.`;
+                        }
+                        const message = encodeURIComponent(messageText);
+                        const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
+                        window.open(`sms:${cleanPhone}${separator}body=${message}`, '_blank');
+                    }
+                    // Small delay to prevent browser blocking
+                    await new Promise(r => setTimeout(r, 600));
+                }
+            }
+        }
+
+        async function loadFollowUps() {
+            const pending = await getPendingFollowUps();
+            const container = document.getElementById('followUpContainer');
+            document.getElementById('followUpCount').innerText = `${pending.length} Due`;
+
+            if (pending.length === 0) {
+                container.innerHTML = `<div style="color:#9ca3af;font-size:0.875rem;text-align:center;padding:16px;font-style:italic">No follow-ups due today or prior.</div>`;
+                return;
+            }
+            container.innerHTML = '';
+            pending.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
+
+            for (const action of pending) {
+                const customer = await getCustomerByAccountNo(action.customerAccountNo);
+                const custName = customer ? customer.name : 'Unknown';
+                const followDateObj = new Date(action.followUpDate);
+                const isPast = followDateObj < new Date(new Date().setHours(0, 0, 0, 0));
+                const chipStyle = isPast
+                    ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3'
+                    : 'background:#fffbeb;color:#b45309;border:1px solid #fde68a';
+                const chipText = isPast ? '⚠ Overdue: ' + action.followUpDate : '● Due Today: ' + action.followUpDate;
+                const cardClass = isPast ? 'followup-card overdue' : 'followup-card today';
+
+                const el = document.createElement('div');
+                el.className = cardClass;
+                el.onclick = () => window.location.href = `customer-detail.html?accountNo=${action.customerAccountNo}`;
+                el.innerHTML = `
+                    <div style="background:#ede9fe;border-radius:10px;padding:10px;color:#7c3aed;flex-shrink:0">
+                        <i data-lucide="calendar-clock" style="width:20px;height:20px"></i>
+                    </div>
+                    <div style="flex:1">
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+                            <h4 style="font-weight:700;font-size:0.875rem;color:#1e1b4b">${custName} <span style="color:#9ca3af;font-weight:500">(${action.customerAccountNo})</span></h4>
+                            <span style="font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:999px;${chipStyle}">${chipText}</span>
+                        </div>
+                        <p style="font-size:0.8rem;color:#6b7280"><span style="font-weight:600;color:#1e1b4b">Type:</span> ${action.actionType}</p>
+                        ${action.response ? `<p style="font-size:0.8rem;color:#6b7280;font-style:italic">"${action.response}"</p>` : ''}
+                    </div>
+                    <button onclick="dismissFollowUp(event,${action.id})" title="Dismiss"
+                        style="background:none;border:none;cursor:pointer;color:#d1d5db;padding:6px;border-radius:8px;transition:all .2s;flex-shrink:0"
+                        onmouseover="this.style.color='#e11d48';this.style.background='#fff1f2'"
+                        onmouseout="this.style.color='#d1d5db';this.style.background='none'">
+                        <i data-lucide="check-circle" style="width:20px;height:20px"></i>
+                    </button>`;
+                container.appendChild(el);
+            }
+            lucide.createIcons();
+        }
+
+        async function dismissFollowUp(event, actionId) {
+            event.stopPropagation();
+            if (confirm("Dismiss this reminder?")) {
+                const success = await clearFollowUp(actionId);
+                if (success) loadFollowUps();
+                else alert("Failed to dismiss.");
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', e => loadTableData(e.target.value));
+
+        async function handleBackup() {
+            const dataStr = await exportDatabase();
+            if (!dataStr) { alert("Failed to create backup."); return; }
+            const dateStr = new Date().toISOString().split('T')[0];
+            const defaultFilename = `lrms_backup_${dateStr}.json`;
+            try {
+                if (window.showSaveFilePicker) {
+                    const fh = await window.showSaveFilePicker({ suggestedName: defaultFilename, types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }] });
+                    const w = await fh.createWritable(); await w.write(dataStr); await w.close(); return;
+                }
+            } catch (err) { if (err.name !== 'AbortError') console.error(err); else return; }
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = defaultFilename; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function handleRestore(event) {
+            const file = event.target.files[0]; if (!file) return;
+            if (confirm("WARNING: This will erase ALL CURRENT DATA. Proceed?")) {
+                const reader = new FileReader();
+                reader.onload = async e => {
+                    const success = await importDatabase(e.target.result);
+                    if (success) { alert("Restored!"); window.location.reload(); }
+                    else alert("Failed to restore.");
+                };
+                reader.readAsText(file);
+            }
+            event.target.value = '';
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateEl = document.getElementById('currentDate');
+            const timeEl = document.getElementById('currentTime');
+            if (dateEl) dateEl.innerText = dateStr;
+            if (timeEl) timeEl.innerText = timeStr;
+        }
+        setInterval(updateTime, 1000);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateTime();
+            setTimeout(() => loadTableData(), 100);
+        });
+    </script>
+</body>
+
+</html>

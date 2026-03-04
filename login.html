@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            display: block;
+            overflow: auto;
+            height: auto;
+            min-height: 100vh;
+            background: #f5f3ff;
+        }
+
+        .float-orb {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(167, 139, 250, 0.15);
+            animation: floatOrb 8s ease-in-out infinite;
+        }
+
+        @keyframes floatOrb {
+
+            0%,
+            100% {
+                transform: translateY(0) scale(1)
+            }
+
+            50% {
+                transform: translateY(-20px) scale(1.05)
+            }
+        }
+
+        .feature-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-page">
+
+        <!-- Left Panel -->
+        <div class="login-left">
+            <div class="float-orb" style="width:300px;height:300px;top:-80px;right:-80px;animation-delay:0s"></div>
+            <div class="float-orb" style="width:200px;height:200px;bottom:0;left:-40px;animation-delay:3s"></div>
+            <div class="float-orb" style="width:150px;height:150px;bottom:120px;right:30px;animation-delay:5s"></div>
+
+            <div style="position:relative;z-index:1;text-align:center;max-width:420px">
+                <div
+                    style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:18px;display:inline-flex;margin-bottom:28px">
+                    <img src="assets/logo.png" alt="GSCS" style="height:72px;object-fit:contain;filter:brightness(1.1)">
+                </div>
+                <h1
+                    style="font-family:'Poppins',sans-serif;font-size:1.9rem;font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px">
+                    Loan Recovery<br>Management System
+                </h1>
+                <p style="color:rgba(221,214,254,0.85);font-size:0.95rem;margin-bottom:32px;line-height:1.6">
+                    GALAPITIYAGAMA SANASA BANK<br>
+                    <span style="font-size:0.8rem;opacity:0.7">Secure Internal Management Portal</span>
+                </p>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
+                    <span class="feature-chip"><i data-lucide="shield-check" style="width:14px;height:14px"></i> Secure
+                        Login</span>
+                    <span class="feature-chip"><i data-lucide="database" style="width:14px;height:14px"></i> Local
+                        Database</span>
+                    <span class="feature-chip"><i data-lucide="bell" style="width:14px;height:14px"></i> Smart
+                        Reminders</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Form Panel -->
+        <div class="login-right">
+            <div class="login-form-wrap">
+                <div style="margin-bottom:32px">
+                    <h2
+                        style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;color:#1e1b4b;margin-bottom:6px">
+                        Welcome back 👋</h2>
+                    <p style="color:#6b7280;font-size:0.875rem">Sign in to your account to continue</p>
+                </div>
+
+                <!-- Error Box -->
+                <div id="errorMessage" class="hidden"
+                    style="display:none;background:#fff1f2;border:1px solid #fecdd3;color:#be123c;font-size:0.85rem;font-weight:500;padding:12px 16px;border-radius:12px;margin-bottom:20px;align-items:center;gap:8px">
+                    <i data-lucide="alert-circle" style="width:16px;height:16px;flex-shrink:0"></i>
+                    <span id="errorText">Invalid username or password.</span>
+                </div>
+
+                <form id="loginForm" style="display:flex;flex-direction:column;gap:20px">
+                    <div>
+                        <label
+                            style="display:block;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#1e1b4b;margin-bottom:8px">Username</label>
+                        <div style="position:relative">
+                            <i data-lucide="user"
+                                style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#9ca3af;pointer-events:none"></i>
+                            <input type="text" id="username" required autocomplete="username"
+                                placeholder="Enter your username"
+                                style="width:100%;padding:12px 14px 12px 42px;border:1.5px solid #e5e7eb;border-radius:12px;background:#fafafa;font-family:'Inter',sans-serif;font-size:0.9rem;color:#1e1b4b;outline:none;transition:all .2s"
+                                onfocus="this.style.borderColor='#7c3aed';this.style.boxShadow='0 0 0 3px rgba(124,58,237,0.12)'"
+                                onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            style="display:block;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#1e1b4b;margin-bottom:8px">Password</label>
+                        <div style="position:relative">
+                            <i data-lucide="lock"
+                                style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#9ca3af;pointer-events:none"></i>
+                            <input type="password" id="password" required autocomplete="current-password"
+                                placeholder="••••••••"
+                                style="width:100%;padding:12px 44px 12px 42px;border:1.5px solid #e5e7eb;border-radius:12px;background:#fafafa;font-family:'Inter',sans-serif;font-size:0.9rem;color:#1e1b4b;outline:none;transition:all .2s"
+                                onfocus="this.style.borderColor='#7c3aed';this.style.boxShadow='0 0 0 3px rgba(124,58,237,0.12)'"
+                                onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
+                            <button type="button" id="togglePassword"
+                                style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px;border-radius:6px;display:flex;transition:color .2s"
+                                onmouseover="this.style.color='#7c3aed'" onmouseout="this.style.color='#9ca3af'">
+                                <i data-lucide="eye" style="width:16px;height:16px"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"
+                        style="width:100%;justify-content:center;padding:13px;font-size:0.95rem;margin-top:4px;border-radius:12px">
+                        <i data-lucide="log-in" style="width:18px;height:18px"></i>
+                        Sign In to System
+                    </button>
+                </form>
+
+                <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center">
+                    <p style="font-size:0.75rem;color:#9ca3af">System Protected &amp; Secured</p>
+                    <p style="font-size:0.7rem;color:#c4b5fd;margin-top:4px">Developed by Iraasoft Solution</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        lucide.createIcons();
+        if (sessionStorage.getItem('lrms_auth') === 'true') window.location.replace('index.html');
+
+        const pwInput = document.getElementById('password');
+        const pwToggle = document.getElementById('togglePassword');
+        pwToggle.addEventListener('click', () => {
+            const type = pwInput.type === 'password' ? 'text' : 'password';
+            pwInput.type = type;
+            pwToggle.innerHTML = type === 'password'
+                ? '<i data-lucide="eye" style="width:16px;height:16px"></i>'
+                : '<i data-lucide="eye-off" style="width:16px;height:16px"></i>';
+            lucide.createIcons();
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.submitter;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width:18px;height:18px"></i> Authenticating…';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value;
+            const errBox = document.getElementById('errorMessage');
+
+            setTimeout(async () => {
+                const loggedInUser = await loginUser(user, pass);
+                if (loggedInUser && !loggedInUser.error) {
+                    sessionStorage.setItem('lrms_auth', 'true');
+                    sessionStorage.setItem('lrms_user', loggedInUser.name || loggedInUser.username);
+                    sessionStorage.setItem('lrms_role', loggedInUser.role || 'user');
+                    window.location.replace('index.html');
+                } else {
+                    btn.innerHTML = orig; btn.disabled = false;
+                    errBox.style.display = 'flex'; errBox.classList.remove('hidden');
+                    document.getElementById('password').value = '';
+                }
+                lucide.createIcons();
+            }, 500);
+        });
+    </script>
+</body>
+
+</html>

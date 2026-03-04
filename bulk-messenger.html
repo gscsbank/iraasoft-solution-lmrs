@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Messenger - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .recipient-tag {
+            background: #f5f3ff;
+            border: 1px solid #ddd6fe;
+            color: #5b21b6;
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .recipient-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 12px;
+            background: #f9fafb;
+            border: 1px dashed #d1d5db;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link active">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+        </nav>
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn"><i data-lucide="log-out"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div>
+                <h2>Custom Bulk Messenger</h2>
+                <p>Send personalized messages to multiple recipients</p>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <div style="max-width: 800px; margin: 0 auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i data-lucide="users" style="color:#7c3aed"></i> Selected Recipients</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="recipientCount" class="text-sm font-bold text-violet-600 mb-3">0 Recipients Selected
+                        </div>
+                        <div id="recipientList" class="recipient-list">
+                            <!-- Recipients will be loaded here -->
+                        </div>
+                        <div class="mt-4 text-xs text-gray-500 italic">
+                            * Selected from the Dashboard. If list is empty, go to Dashboard and select customers first.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-6">
+                    <div class="card-header">
+                        <h3><i data-lucide="message-square" style="color:#7c3aed"></i> Message Editor</h3>
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label">Type your message here</label>
+                        <textarea id="customMessage" class="form-input"
+                            style="height: 150px; resize: none; margin-bottom: 16px"
+                            placeholder="Enter the message you want to send..."></textarea>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="sendWhatsApp" class="btn btn-primary"
+                                style="background:#25d366; border:none; justify-content:center">
+                                <i data-lucide="message-circle"></i> Send via WhatsApp
+                            </button>
+                            <button id="sendSMS" class="btn btn-primary"
+                                style="background:#3b82f6; border:none; justify-content:center">
+                                <i data-lucide="smartphone"></i> Send via SMS
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="statusLog" class="mt-6 hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Sending Progress</h3>
+                        </div>
+                        <div id="logContent" class="card-body text-sm space-y-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        let selectedRecipients = [];
+
+        async function init() {
+            lucide.createIcons();
+            const stored = localStorage.getItem('selected_bulk_accounts');
+            if (stored) {
+                const accounts = JSON.parse(stored);
+                for (const acc of accounts) {
+                    const customer = await getCustomerByAccountNo(acc);
+                    if (customer) selectedRecipients.push(customer);
+                }
+                renderRecipients();
+            }
+        }
+
+        function renderRecipients() {
+            const list = document.getElementById('recipientList');
+            const count = document.getElementById('recipientCount');
+            count.innerText = `${selectedRecipients.length} Recipient(s) Selected`;
+
+            if (selectedRecipients.length === 0) {
+                list.innerHTML = '<div class="text-gray-400 italic">No recipients selected. Go back to Dashboard.</div>';
+                return;
+            }
+
+            list.innerHTML = selectedRecipients.map(r => `
+                <div class="recipient-tag">
+                    <i data-lucide="user" style="width:12px;height:12px"></i>
+                    ${r.name} (${r.accountNo})
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function sendBulk(type) {
+            const message = document.getElementById('customMessage').value.trim();
+            if (!message) { alert("Please enter a message!"); return; }
+            if (selectedRecipients.length === 0) { alert("No recipients selected!"); return; }
+
+            if (!confirm(`Are you sure you want to send this message to ${selectedRecipients.length} customers via ${type.toUpperCase()}?`)) return;
+
+            document.getElementById('statusLog').classList.remove('hidden');
+            const log = document.getElementById('logContent');
+            log.innerHTML = '';
+
+            for (const c of selectedRecipients) {
+                if (!c.phone) {
+                    log.innerHTML += `<div class="text-red-500">Skipped ${c.name}: No phone number</div>`;
+                    continue;
+                }
+
+                const cleanPhone = c.phone.replace(/\D/g, '');
+                const encodedMsg = encodeURIComponent(message);
+
+                log.innerHTML += `<div class="text-violet-600">Sending to ${c.name}...</div>`;
+
+                if (type === 'whatsapp') {
+                    window.open(`https://wa.me/${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=${encodedMsg}`, '_blank');
+                } else {
+                    const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
+                    window.open(`sms:${cleanPhone}${separator}body=${encodedMsg}`, '_blank');
+                }
+
+                // Small delay to prevent browser blocking
+                await new Promise(r => setTimeout(r, 800));
+            }
+
+            log.innerHTML += `<div class="font-bold text-green-600 mt-2">Process completed!</div>`;
+        }
+
+        document.getElementById('sendWhatsApp').addEventListener('click', () => sendBulk('whatsapp'));
+        document.getElementById('sendSMS').addEventListener('click', () => sendBulk('sms'));
+
+        init();
+    </script>
+</body>
+
+</html>

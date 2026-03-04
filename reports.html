@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+                font-size: 10pt;
+            }
+
+            .sidebar,
+            .no-print {
+                display: none !important;
+            }
+
+            .content-area {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border-radius: 0 !important;
+                overflow: visible !important;
+            }
+
+            .premium-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                border: 1px solid #000 !important;
+                border-radius: 0 !important;
+            }
+
+            .premium-table thead tr {
+                background: transparent !important;
+            }
+
+            .premium-table th {
+                background: #eee !important;
+                color: #000 !important;
+                border: 1px solid #000 !important;
+                border-radius: 0 !important;
+                -webkit-filter: grayscale(100%);
+                filter: grayscale(100%);
+            }
+
+            .premium-table td {
+                border: 1px solid #000 !important;
+                color: #000 !important;
+            }
+
+            .badge {
+                border: 1px solid #000 !important;
+                background: transparent !important;
+                color: #000 !important;
+                padding: 2px 4px !important;
+                -webkit-filter: grayscale(100%);
+                filter: grayscale(100%);
+            }
+
+            .main-content {
+                overflow: visible !important;
+                height: auto !important;
+                position: static !important;
+                display: block !important;
+            }
+
+            body {
+                overflow: visible !important;
+                height: auto !important;
+            }
+
+            .print-only {
+                display: block !important;
+                color: black !important;
+            }
+
+            .signature-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 40px;
+                text-align: center;
+                margin-top: 60px;
+                font-size: 0.8rem;
+            }
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 1cm;
+        }
+
+        .print-only {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link active">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header no-print">
+            <div>
+                <h2>Management Reports</h2>
+                <p>Generate and print board-ready reports</p>
+            </div>
+            <button onclick="window.print()" class="btn btn-slate">
+                <i data-lucide="printer"></i> Print Report
+            </button>
+        </header>
+
+        <!-- Print Header -->
+        <div class="print-only" style="padding:20px;border-bottom:2px solid #000;margin-bottom:30px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;align-items:center;gap:15px">
+                    <img src="assets/logo.png" style="height:60px">
+                    <div>
+                        <h1 id="printBankName" style="font-size:1.4rem;font-weight:800;color:#000">GALAPITIYAGAMA SANASA
+                            BANK</h1>
+                        <p style="font-size:0.8rem;color:#444">Loan Recovery Management System</p>
+                    </div>
+                </div>
+                <div style="text-align:right">
+                    <h2 style="font-size:1.1rem;font-weight:700">General Recovery Report</h2>
+                    <p style="font-size:0.75rem">Generated On: <span id="printDate"></span></p>
+                </div>
+            </div>
+            <div style="margin-top:15px;display:flex;gap:30px;font-size:0.8rem;font-weight:700">
+                <div>Status: <span id="printFilterLabel" style="color:var(--violet-700)"></span></div>
+                <div>Target Month: <span id="printMonthLabel" style="color:var(--violet-700)"></span></div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+
+            <!-- Recovery Summary Cards -->
+            <div id="reportSummaryCards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 hidden">
+                <div class="card p-4 border-l-4 border-violet-500">
+                    <div class="text-xs font-bold text-gray-400 uppercase">Total Accounts</div>
+                    <div id="sumAccounts" class="text-xl font-extrabold text-violet-700">0</div>
+                </div>
+                <div class="card p-4 border-l-4 border-blue-500">
+                    <div class="text-xs font-bold text-gray-400 uppercase">Total Principle</div>
+                    <div id="sumPrinciple" class="text-xl font-extrabold text-blue-700">0</div>
+                </div>
+                <div class="card p-4 border-l-4 border-amber-500">
+                    <div class="text-xs font-bold text-gray-400 uppercase">High Risk</div>
+                    <div id="sumRisk" class="text-xl font-extrabold text-amber-700">0</div>
+                </div>
+                <div class="card p-4 border-l-4 border-emerald-500">
+                    <div class="text-xs font-bold text-gray-400 uppercase">Settled</div>
+                    <div id="sumSettled" class="text-xl font-extrabold text-emerald-700">0</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card no-print" style="margin-bottom:24px">
+                <div class="card-body">
+                    <div
+                        style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:20px;align-items:flex-end">
+                        <div>
+                            <label class="form-label">Filter by Status</label>
+                            <select id="reportFilter" class="form-select">
+                                <option value="All">All Categories</option>
+                                <option value="High Risk">High Risk Only</option>
+                                <option value="Legal Action - Cooperative Commissioner">Legal Action (Cooperative
+                                    Commissioner)</option>
+                                <option value="Legal Action - Courts">Legal Action (Courts)</option>
+                                <option value="Loan Closed">Loan Closed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Target Month</label>
+                            <input type="month" id="reportMonth" class="form-input">
+                        </div>
+                        <div style="display:flex;gap:10px">
+                            <button onclick="loadReport()" class="btn btn-primary" style="flex:1">Generate</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div style="overflow-x:auto">
+                    <table class="premium-table">
+                        <thead>
+                            <tr style="background:var(--violet-50)">
+                                <th style="width:50px;text-align:center">#</th>
+                                <th>Account</th>
+                                <th>Loan Info</th>
+                                <th>Guarantors</th>
+                                <th style="text-align:center">Status Date</th>
+                                <th style="text-align:center">Current Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align:center;padding:40px;color:#9ca3af">Generate a report
+                                    to see data.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="summaryFooter" class="card-footer hidden"
+                    style="justify-content:flex-end;font-weight:800;font-size:0.9rem">
+                    Total Records: <span id="totalRecords" style="color:var(--violet-700);margin-left:8px">0</span>
+                </div>
+
+                <!-- Print Bottom Signatures -->
+                <div class="print-only signature-grid">
+                    <div>
+                        <div style="border-top:1px solid #000;margin-bottom:5px"></div>
+                        <p style="font-weight:700">Prepared By (Officer)</p>
+                    </div>
+                    <div>
+                        <div style="border-top:1px solid #000;margin-bottom:5px"></div>
+                        <p style="font-weight:700">Reviewed By (Manager)</p>
+                    </div>
+                    <div>
+                        <div style="border-top:1px solid #000;margin-bottom:5px"></div>
+                        <p style="font-weight:700">Approved By (Chairman)</p>
+                    </div>
+                </div>
+                <div class="print-only"
+                    style="margin-top:80px;text-align:right;font-size:0.65rem;color:#666;font-style:italic">
+                    System Developed by : Iraasoft Solutions
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        document.getElementById('printDate').innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            if (sessionStorage.getItem('lrms_role') === 'admin') {
+                document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+            }
+            setTimeout(() => loadReport(), 150);
+        });
+
+        async function loadReport() {
+            const fVal = document.getElementById('reportFilter').value;
+            const mVal = document.getElementById('reportMonth').value;
+            document.getElementById('printFilterLabel').innerText = fVal;
+            document.getElementById('printMonthLabel').innerText = mVal ? new Date(mVal + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'All Time';
+
+            let customers = await getAllCustomers();
+            if (fVal !== 'All') customers = customers.filter(c => c.status === fVal);
+            if (mVal) customers = customers.filter(c => c.statusDate && c.statusDate.startsWith(mVal));
+
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '';
+            const footer = document.getElementById('summaryFooter');
+
+            if (customers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:80px;color:#9ca3af;font-style:italic">No matching records.</td></tr>`;
+                footer.classList.add('hidden');
+                return;
+            }
+
+            let totalPrinciple = 0;
+            let totalRisk = 0;
+            let totalSettled = 0;
+
+            customers.forEach((c, idx) => {
+                totalPrinciple += c.loanAmount;
+                if (c.status.includes('High Risk')) totalRisk++;
+                if (c.status === 'Loan Closed') totalSettled++;
+
+                let badgeStyle = 'background:#f1f5f9;color:#475569';
+                if (c.status.includes('High Risk')) badgeStyle = 'background:#fffbeb;color:#b45309';
+                if (c.status.includes('Legal')) badgeStyle = 'background:#fff1f2;color:#be123c';
+                if (c.status === 'Loan Closed') badgeStyle = 'background:#f0fdf4;color:#15803d';
+
+                const amt = 'LKR ' + c.loanAmount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                const sDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                const guar = [c.guarantor1, c.guarantor2].filter(Boolean).join(' | ');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center;color:var(--text-muted)">${idx + 1}</td>
+                    <td>
+                        <div style="font-weight:800;color:var(--text-primary)">${c.name}</div>
+                        <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${c.accountNo}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight:800;color:var(--text-primary)">${amt}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted)">${c.category} &bull; ${c.interestRate}%</div>
+                    </td>
+                    <td style="font-size:0.75rem;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${guar}">
+                        ${guar || 'None'}
+                    </td>
+                    <td style="text-align:center;font-weight:600;color:var(--text-primary)">${sDate}</td>
+                    <td style="text-align:center">
+                        <span class="badge" style="${badgeStyle};padding:4px 10px;font-size:0.65rem;border:none">
+                            ${c.status}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('totalRecords').innerText = customers.length;
+            document.getElementById('sumAccounts').innerText = customers.length;
+            document.getElementById('sumPrinciple').innerText = 'LKR ' + totalPrinciple.toLocaleString();
+            document.getElementById('sumRisk').innerText = totalRisk;
+            document.getElementById('sumSettled').innerText = totalSettled;
+            document.getElementById('reportSummaryCards').classList.remove('hidden');
+
+            footer.classList.remove('hidden');
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>

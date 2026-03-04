@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reminders - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link active">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <div>
+                <h2>Reminders &amp; Follow-ups</h2>
+                <p>Track customer promises and scheduled actions</p>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div class="content-area">
+
+            <div class="card" style="height:100%;display:flex;flex-direction:column">
+                <!-- Toolbar -->
+                <div class="card-header" style="background:#fdfcff;flex-wrap:wrap;gap:16px">
+                    <div
+                        style="display:flex;background:#fff;border:1px solid #ede9fe;border-radius:12px;padding:4px;box-shadow:var(--shadow-sm)">
+                        <button onclick="setFilter('all')" id="btn-filter-all" class="btn btn-primary"
+                            style="padding:6px 14px;border-radius:8px;font-size:0.8rem">All</button>
+                        <button onclick="setFilter('overdue')" id="btn-filter-overdue" class="btn btn-ghost"
+                            style="padding:6px 14px;border-radius:8px;font-size:0.8rem">Overdue</button>
+                        <button onclick="setFilter('today')" id="btn-filter-today" class="btn btn-ghost"
+                            style="padding:6px 14px;border-radius:8px;font-size:0.8rem">Today</button>
+                        <button onclick="setFilter('upcoming')" id="btn-filter-upcoming" class="btn btn-ghost"
+                            style="padding:6px 14px;border-radius:8px;font-size:0.8rem">Upcoming</button>
+                    </div>
+
+                    <div class="search-wrap" style="width:320px;margin-left:auto">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="searchInput" class="search-input"
+                            placeholder="Search customer or action...">
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div style="flex:1;overflow-y:auto">
+                    <table class="premium-table">
+                        <thead style="position:sticky;top:0;z-index:5">
+                            <tr>
+                                <th>Status</th>
+                                <th>Customer</th>
+                                <th>Follow-up Date</th>
+                                <th>Action Details</th>
+                                <th style="text-align:right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="remindersTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align:center;padding:40px;color:#9ca3af">Loading
+                                    reminders...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        let allReminders = [];
+        let currentFilter = 'all';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            if (sessionStorage.getItem('lrms_role') === 'admin') {
+                document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+            }
+            setTimeout(loadData, 150);
+        });
+
+        async function loadData() {
+            try {
+                const snapshot = await db.collection("actions").get();
+                allReminders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(a => a.followUpDate);
+                for (let r of allReminders) {
+                    const c = await getCustomerByAccountNo(r.customerAccountNo);
+                    r.customerName = c ? c.name : 'Unknown';
+                    r.loanAmount = c ? c.loanAmount : 0;
+                }
+                allReminders.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
+                renderTable();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('remindersTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#ef4444">Error loading data.</td></tr>`;
+            }
+        }
+
+        function setFilter(f) {
+            currentFilter = f;
+            const btns = ['all', 'overdue', 'today', 'upcoming'];
+            btns.forEach(b => {
+                const el = document.getElementById('btn-filter-' + b);
+                if (b === f) {
+                    el.className = "btn btn-primary";
+                    el.style.background = "linear-gradient(135deg, var(--violet-600), var(--violet-800))";
+                    el.style.color = "#fff";
+                } else {
+                    el.className = "btn btn-ghost";
+                    el.style.background = "transparent";
+                    el.style.color = "var(--text-secondary)";
+                }
+            });
+            renderTable();
+        }
+
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+
+        function renderTable() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayDate = new Date(new Date().setHours(0, 0, 0, 0));
+
+            const filtered = allReminders.filter(r => {
+                const matchText = r.customerName.toLowerCase().includes(query) ||
+                    r.customerAccountNo.toLowerCase().includes(query) ||
+                    (r.response && r.response.toLowerCase().includes(query));
+                if (!matchText) return false;
+
+                const rDate = new Date(r.followUpDate);
+                if (currentFilter === 'overdue') return rDate < todayDate;
+                if (currentFilter === 'today') return r.followUpDate === todayStr;
+                if (currentFilter === 'upcoming') return rDate > todayDate;
+                return true;
+            });
+
+            const tbody = document.getElementById('remindersTableBody');
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:120px;color:#9ca3af;font-style:italic">No reminders found.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(r => {
+                const rDate = new Date(r.followUpDate);
+                const isOverdue = rDate < todayDate;
+                const isToday = r.followUpDate === todayStr;
+
+                let badge = '<span class="badge badge-normal" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0">Upcoming</span>';
+                let dateStyle = 'color:var(--text-primary)';
+                if (isOverdue) {
+                    badge = '<span class="badge badge-legal" style="background:#fff1f2;color:#be123c;border-color:#fecdd3">Overdue</span>';
+                    dateStyle = 'color:#dc2626;font-weight:800';
+                } else if (isToday) {
+                    badge = '<span class="badge badge-risk" style="background:#fffbeb;color:#b45309;border-color:#fde68a">Today</span>';
+                    dateStyle = 'color:#d97706;font-weight:800';
+                }
+
+                const dStr = rDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                const tr = document.createElement('tr');
+                tr.onclick = (e) => { if (!e.target.closest('button')) window.location.href = `customer-detail.html?accountNo=${r.customerAccountNo}`; };
+                tr.innerHTML = `
+                    <td>${badge}</td>
+                    <td>
+                        <div style="font-weight:800;color:var(--text-primary)">${r.customerName}</div>
+                        <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${r.customerAccountNo} &bull; LKR ${r.loanAmount.toLocaleString()}</div>
+                    </td>
+                    <td style="${dateStyle}">${dStr}</td>
+                    <td>
+                        <div style="font-weight:600">${r.actionType}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);font-style:italic">"${r.response || 'No response'}"</div>
+                    </td>
+                    <td style="text-align:right">
+                        <button onclick="dismissFollowUp(event, '${r.id}')" title="Dismiss" class="btn btn-ghost" style="color:#d1d5db;padding:8px">
+                            <i data-lucide="check-circle"></i>
+                        </button>
+                    </td>`;
+                tbody.appendChild(tr);
+                const btn = tr.querySelector('button');
+                btn.onmouseover = () => { btn.style.color = '#dc2626'; btn.style.background = '#fee2e2'; };
+                btn.onmouseout = () => { btn.style.color = '#d1d5db'; btn.style.background = 'transparent'; };
+            });
+            lucide.createIcons();
+        }
+
+        async function dismissFollowUp(event, id) {
+            event.stopPropagation();
+            if (confirm("Dismiss this reminder?")) {
+                if (await clearFollowUp(id)) {
+                    allReminders = allReminders.filter(r => r.id !== id);
+                    renderTable();
+                } else alert("Failed.");
+            }
+        }
+    </script>
+</body>
+
+</html>
