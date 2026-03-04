@@ -338,7 +338,74 @@ async function changeUserPassword(id, newPassword) {
 }
 
 // ---- Dashboard Charts ----
-// (initDashboardCharts uses getAllCustomers() which we already updated)
+async function initDashboardCharts() {
+    console.log("Initializing Dashboard Charts...");
+    const customers = await getAllCustomers();
+    if (!customers || customers.length === 0) {
+        console.warn("No customers found for charts.");
+        return;
+    }
+
+    // 1. Status Distribution
+    const statusCounts = {};
+    customers.forEach(c => {
+        const s = c.status || 'Unknown';
+        statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    const statusCtx = document.getElementById('statusChart')?.getContext('2d');
+    if (statusCtx) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                    data: Object.values(statusCounts),
+                    backgroundColor: ['#c084fc', '#fcd34d', '#f87171', '#60a5fa', '#34d399'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11, weight: '600' } } } },
+                cutout: '70%'
+            }
+        });
+    }
+
+    // 2. Category Distribution
+    const catCounts = {};
+    customers.forEach(c => {
+        const cat = c.category || 'Other';
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
+    });
+
+    const catCtx = document.getElementById('categoryChart')?.getContext('2d');
+    if (catCtx) {
+        new Chart(catCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(catCounts),
+                datasets: [{
+                    label: 'Customers',
+                    data: Object.values(catCounts),
+                    backgroundColor: '#7c3aed',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+}
 
 // ---- Document Management ----
 async function saveDocument(docData) {
