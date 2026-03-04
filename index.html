@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="js/firebase-config.js?v=1.1"></script>
+    <script src="js/firebase-config.js?v=1.2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
@@ -353,7 +353,7 @@
     </div>
 
     <!-- App Logic -->
-    <script src="js/app.js?v=1.1"></script>
+    <script src="js/app.js?v=1.2"></script>
     <script>
         lucide.createIcons();
 
@@ -612,12 +612,14 @@
 
         async function handleRestore(event) {
             const file = event.target.files[0]; if (!file) return;
-            if (confirm("WARNING: This will erase ALL CURRENT DATA. Proceed?")) {
+            if (confirm("WARNING: This will PERMANENTLY ERASE ALL CURRENT CLOUD DATA and replace it with this backup. Proceed?")) {
                 const reader = new FileReader();
                 reader.onload = async e => {
+                    const cleared = await clearDatabase();
+                    if (!cleared) { alert("Failed to clear existing data. Restore aborted."); return; }
+
                     const success = await importDatabase(e.target.result);
-                    if (success) { alert("Restored!"); window.location.reload(); }
-                    else alert("Failed to restore.");
+                    if (success) { alert("Restored Successfully!"); window.location.reload(); }
                 };
                 reader.readAsText(file);
             }

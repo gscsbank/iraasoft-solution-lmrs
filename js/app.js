@@ -19,7 +19,7 @@ window.handleLogout = function () {
 // Initialize Firebase is handled in firebase-config.js
 // The global 'db' variable refers to firebase.firestore()
 
-console.log("LRMS Script Version: 1.1 - LOADED");
+console.log("LRMS Script Version: 1.2 - RECOVERY MODE");
 
 // Helper Function: Add new customer
 async function addCustomer(customerData) {
@@ -27,13 +27,12 @@ async function addCustomer(customerData) {
     try {
         const existing = await getCustomerByAccountNo(customerData.accountNo);
         if (existing) {
-            console.warn("Duplicate found in Firestore:", customerData.accountNo);
-            alert("This Account Number already exists in the Cloud Database!");
+            console.warn("Duplicate found in Firestore:", existing);
+            alert(`Account Number [${customerData.accountNo}] already exists in the Cloud!\n(Record ID: ${existing.id})`);
             return false;
         }
         await db.collection("customers").add(customerData);
-        console.log("Customer added successfully!");
-        alert("Customer successfully added to Cloud!");
+        alert("Successfully saved to Cloud!");
         return true;
     } catch (error) {
         console.error("CRITICAL FIRESTORE ERROR (Add):", error);
@@ -212,34 +211,56 @@ async function exportDatabase() {
     }
 }
 
+// Helper Function: Clear the entire database (Use with caution!)
+async function clearDatabase() {
+    console.log("Wiping Cloud Database...");
+    try {
+        const collections = ['customers', 'actions', 'documents'];
+        for (const coll of collections) {
+            const snapshot = await db.collection(coll).get();
+            const batch = db.batch();
+            snapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            console.log(`Cleared collection: ${coll}`);
+        }
+        return true;
+    } catch (err) {
+        console.error("Error clearing database:", err);
+        return false;
+    }
+}
+
 // Database Restore / Import (Be careful with batch limits)
 // Database Restore / Import (Be careful with batch limits)
 async function importDatabase(jsonData) {
     console.log("Starting importDatabase process...");
     try {
         const data = JSON.parse(jsonData);
-        console.log("File parsed successfully as JSON.");
+        console.log("File parsed successfully.");
 
         // Handle Dexie-style or custom formats
-        const rawCustomers = data.customers || data.lrms_customers || (data.data ? data.data.customers : []);
-        const rawActions = data.actions || data.lrms_actions || (data.data ? data.data.actions : []);
-        const rawUsers = data.users || data.lrms_users || (data.data ? data.data.users : []);
+        const rawCustomers = data.customers || data.lrms_customers || (data.data ? data.data.customers : []) || [];
+        const rawActions = data.actions || data.lrms_actions || (data.data ? data.data.actions : []) || [];
+        const rawUsers = data.users || data.lrms_users || (data.data ? data.data.users : []) || [];
 
-        console.log(`Detected in file: ${rawCustomers.length} customers, ${rawActions.length} actions, ${rawUsers.length} users.`);
+        alert(`Backup file found: ${rawCustomers.length} customers and ${rawActions.length} actions.\nClick OK to begin Cloud Import.`);
 
-        // 1. Import Customers (Skip existing to avoid "Account exists" errors later)
+        let importedCount = 0;
+        let skippedCount = 0;
+
+        // 1. Import Customers
         for (const c of rawCustomers) {
             if (c.accountNo) {
                 const cleanAcc = c.accountNo.toString().trim();
-                console.log(`Checking duplicate during import for: ${cleanAcc}`);
                 const existing = await getCustomerByAccountNo(cleanAcc);
                 if (!existing) {
                     delete c.id;
                     c.accountNo = cleanAcc;
                     await db.collection("customers").add(c);
-                    console.log(`Customer ${cleanAcc} imported.`);
+                    importedCount++;
                 } else {
-                    console.warn(`Skipping customer ${cleanAcc} - already exists in Cloud.`);
+                    skippedCount++;
+                    console.log(`Duplicate skipped: ${cleanAcc}`);
                 }
             }
         }
@@ -261,16 +282,15 @@ async function importDatabase(jsonData) {
                     delete u.id;
                     u.username = norm;
                     await db.collection("users").add(u);
-                    console.log(`User ${norm} imported.`);
                 }
             }
         }
 
-        console.log("Import process completed successfully!");
+        alert(`Import Finished!\n\nImported: ${importedCount}\nSkipped (Duplicates): ${skippedCount}\n\nThe system will now reload.`);
         return true;
     } catch (err) {
         console.error("CRITICAL IMPORT ERROR:", err);
-        alert("Import Error: " + err.message);
+        alert("CRITICAL ERROR during restore: " + err.message + "\nCheck if the file is a valid JSON backup.");
         return false;
     }
 }
