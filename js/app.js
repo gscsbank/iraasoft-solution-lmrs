@@ -44,8 +44,11 @@ async function getAllCustomers() {
 
 // Helper Function: Get customer by Account No
 async function getCustomerByAccountNo(accountNo) {
+    if (!accountNo) return null;
     try {
-        const snapshot = await db.collection("customers").where('accountNo', '==', accountNo).get();
+        const cleanAcc = accountNo.toString().trim();
+        if (!cleanAcc) return null;
+        const snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
         if (snapshot.empty) return null;
         const doc = snapshot.docs[0];
         return { id: doc.id, ...doc.data() };
@@ -198,17 +201,54 @@ async function exportDatabase() {
 }
 
 // Database Restore / Import (Be careful with batch limits)
+// Database Restore / Import (Be careful with batch limits)
 async function importDatabase(jsonData) {
     try {
         const data = JSON.parse(jsonData);
-        // Clear logic for cloud is destructive, usually not recommended via bulk.
-        // For simplicity, we just add them.
-        for (const c of data.customers) await db.collection("customers").add(c);
-        for (const a of data.actions) await db.collection("actions").add(a);
-        for (const u of data.users) await db.collection("users").add(u);
+
+        // Handle Dexie-style or custom formats
+        const rawCustomers = data.customers || data.lrms_customers || (data.data ? data.data.customers : []);
+        const rawActions = data.actions || data.lrms_actions || (data.data ? data.data.actions : []);
+        const rawUsers = data.users || data.lrms_users || (data.data ? data.data.users : []);
+
+        console.log(`Importing: ${rawCustomers.length} customers...`);
+
+        // 1. Import Customers (Skip existing to avoid "Account exists" errors later)
+        for (const c of rawCustomers) {
+            if (c.accountNo) {
+                const cleanAcc = c.accountNo.toString().trim();
+                const existing = await getCustomerByAccountNo(cleanAcc);
+                if (!existing) {
+                    delete c.id; // Let Firestore generate new ID
+                    c.accountNo = cleanAcc;
+                    await db.collection("customers").add(c);
+                }
+            }
+        }
+
+        // 2. Import Actions
+        for (const a of rawActions) {
+            delete a.id;
+            await db.collection("actions").add(a);
+        }
+
+        // 3. Import Users
+        for (const u of rawUsers) {
+            if (u.username) {
+                const norm = u.username.toLowerCase().trim();
+                const snapshot = await db.collection("users").where('username', '==', norm).get();
+                if (snapshot.empty) {
+                    delete u.id;
+                    u.username = norm;
+                    await db.collection("users").add(u);
+                }
+            }
+        }
+
         return true;
     } catch (err) {
         console.error("Error importing database:", err);
+        alert("Import Error: " + err.message);
         return false;
     }
 }
