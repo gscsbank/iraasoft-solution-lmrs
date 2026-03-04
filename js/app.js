@@ -2,7 +2,8 @@
 
 // ---- Authentication Guard ----
 // If not on the login page, check for session token.
-if (!window.location.pathname.endsWith('login.html')) {
+const isOnLoginPage = window.location.pathname.includes('login.html') || window.location.pathname.endsWith('/login');
+if (!isOnLoginPage) {
     if (sessionStorage.getItem('lrms_auth') !== 'true') {
         window.location.replace('login.html');
     }
