@@ -1,4 +1,43 @@
 // js/app.js
+console.log("LRMS Script Version: 3.0 - SURVIVAL MODE");
+
+function setRestoreStatus(msg) {
+    console.log("STATUS:", msg);
+    const el = document.getElementById('restoreStatus');
+    if (el) el.innerText = msg;
+}
+
+// Hoisted Charts Function
+async function initDashboardCharts() {
+    console.log("Charts: Initializing...");
+    try {
+        const customers = await getAllCustomers();
+        if (!customers || customers.length === 0) { console.warn("No customers for charts."); return; }
+        const statusCounts = {};
+        customers.forEach(c => { const s = c.status || 'Unknown'; statusCounts[s] = (statusCounts[s] || 0) + 1; });
+        const ctx = document.getElementById('statusChart')?.getContext('2d');
+        if (ctx) {
+            if (window.myStatusChart) window.myStatusChart.destroy();
+            window.myStatusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(statusCounts), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#c084fc', '#fcd34d', '#f87171', '#60a5fa', '#34d399'] }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        const catCounts = {};
+        customers.forEach(c => { const cat = c.category || 'Other'; catCounts[cat] = (catCounts[cat] || 0) + 1; });
+        const catCtx = document.getElementById('categoryChart')?.getContext('2d');
+        if (catCtx) {
+            if (window.myCatChart) window.myCatChart.destroy();
+            window.myCatChart = new Chart(catCtx, {
+                type: 'bar',
+                data: { labels: Object.keys(catCounts), datasets: [{ label: 'Customers', data: Object.values(catCounts), backgroundColor: '#7c3aed', borderRadius: 6 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+    } catch (e) { console.error("Chart Error:", e); }
+}
 
 // ---- Authentication Guard ----
 // If not on the login page, check for session token.
@@ -18,8 +57,6 @@ window.handleLogout = function () {
 
 // Initialize Firebase is handled in firebase-config.js
 // The global 'db' variable refers to firebase.firestore()
-
-console.log("LRMS Script Version: 1.3 - HIGH-SPEED RESTORE");
 
 // Helper Function: Add new customer
 async function addCustomer(customerData) {
@@ -231,22 +268,30 @@ async function clearDatabase() {
 }
 
 // Database Restore / Import (Be careful with batch limits)
-// Database Restore / Import (Be careful with batch limits)
 async function importDatabase(jsonData) {
-    console.log("Starting Batch Import process...");
+    setRestoreStatus("Starting Restore V3...");
+    alert("V3 RESTORE STARTED\nStep 1: Parsing backup file...");
+
     try {
         const data = JSON.parse(jsonData);
         const rawCustomers = data.customers || data.lrms_customers || (data.data ? data.data.customers : []) || [];
         const rawActions = data.actions || data.lrms_actions || (data.data ? data.data.actions : []) || [];
-        const rawUsers = data.users || data.lrms_users || (data.data ? data.data.users : []) || [];
 
-        alert(`Backup file parsed: ${rawCustomers.length} Customers, ${rawActions.length} Actions.\n\nClick OK to start high-speed Cloud Import.\nPlease wait for the "Success" message.`);
+        alert(`Step 2: File Parsed!\nFound ${rawCustomers.length} Customers and ${rawActions.length} Actions.\n\nReady to WIPE Cloud Database?`);
+
+        setRestoreStatus("Wiping Cloud Data...");
+        const cleared = await clearDatabase();
+        if (!cleared) { throw new Error("Could not wipe existing data. Check your Firestore Permissions."); }
+
+        alert("Step 3: Cloud Wiped Successfully!\nNow starting DATA UPLOAD. Please wait for the final 'SUCCESS' message.");
 
         const allItems = [];
-        rawCustomers.forEach(c => { delete c.id; allItems.push({ coll: 'customers', data: c }); });
-        rawActions.forEach(a => { delete a.id; allItems.push({ coll: 'actions', data: a }); });
+        rawCustomers.forEach(c => { delete c.id; if (c.accountNo) allItems.push({ coll: 'customers', data: c }); });
+        rawActions.forEach(a => { delete a.id; if (a.customerAccountNo) allItems.push({ coll: 'actions', data: a }); });
 
-        // 1. Batch Import Customers & Actions (Chunks of 400)
+        setRestoreStatus(`Uploading ${allItems.length} records...`);
+
+        // Batch upload in chunks of 400
         for (let i = 0; i < allItems.length; i += 400) {
             const chunk = allItems.slice(i, i + 400);
             const batch = db.batch();
@@ -255,30 +300,18 @@ async function importDatabase(jsonData) {
                 batch.set(ref, item.data);
             });
             await batch.commit();
-            console.log(`Imported chunk ${i} to ${i + chunk.length}`);
+            setRestoreStatus(`Progress: ${i + chunk.length} / ${allItems.length}`);
         }
 
-        // 2. Import Users (Small scale, usually doesn't need batching but safe)
-        for (const u of rawUsers) {
-            if (u.username) {
-                const norm = u.username.toLowerCase().trim();
-                const snapshot = await db.collection("users").where('username', '==', norm).get();
-                if (snapshot.empty) {
-                    delete u.id;
-                    u.username = norm;
-                    await db.collection("users").add(u);
-                }
-            }
-        }
-
-        alert(`Restore Completed Successfully!\nTotal Records: ${allItems.length}\n\nSystem will now refresh.`);
+        alert(`✅ STEP 4: RESTORE COMPLETE!\nTotal: ${allItems.length} records updated.\nThe page will now reload.`);
         return true;
     } catch (err) {
-        console.error("BATCH IMPORT ERROR:", err);
-        alert("Restore Failed: " + err.message);
+        console.error("V3 RESTORE FAILED:", err);
+        alert("❌ RESTORE FAILED\n\nError: " + err.message + "\n\nPlease check your internet and Firestore Rules.");
         return false;
     }
 }
+
 
 // ---- User Management Functions ----
 async function loginUser(username, password) {
@@ -353,75 +386,7 @@ async function changeUserPassword(id, newPassword) {
     }
 }
 
-// ---- Dashboard Charts ----
-async function initDashboardCharts() {
-    console.log("Initializing Dashboard Charts...");
-    const customers = await getAllCustomers();
-    if (!customers || customers.length === 0) {
-        console.warn("No customers found for charts.");
-        return;
-    }
-
-    // 1. Status Distribution
-    const statusCounts = {};
-    customers.forEach(c => {
-        const s = c.status || 'Unknown';
-        statusCounts[s] = (statusCounts[s] || 0) + 1;
-    });
-
-    const statusCtx = document.getElementById('statusChart')?.getContext('2d');
-    if (statusCtx) {
-        new Chart(statusCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(statusCounts),
-                datasets: [{
-                    data: Object.values(statusCounts),
-                    backgroundColor: ['#c084fc', '#fcd34d', '#f87171', '#60a5fa', '#34d399'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11, weight: '600' } } } },
-                cutout: '70%'
-            }
-        });
-    }
-
-    // 2. Category Distribution
-    const catCounts = {};
-    customers.forEach(c => {
-        const cat = c.category || 'Other';
-        catCounts[cat] = (catCounts[cat] || 0) + 1;
-    });
-
-    const catCtx = document.getElementById('categoryChart')?.getContext('2d');
-    if (catCtx) {
-        new Chart(catCtx, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(catCounts),
-                datasets: [{
-                    label: 'Customers',
-                    data: Object.values(catCounts),
-                    backgroundColor: '#7c3aed',
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, grid: { display: false }, ticks: { font: { size: 10 } } },
-                    x: { grid: { display: false }, ticks: { font: { size: 10 } } }
-                }
-            }
-        });
-    }
-}
+// ---- Dashboard Charts Moved to Top ----
 
 // ---- Document Management ----
 async function saveDocument(docData) {
