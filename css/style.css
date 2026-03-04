@@ -1022,3 +1022,108 @@ body {
         padding: 32px 24px;
     }
 }
+
+/* =====================================================
+   MOBILE RESPONSIVENESS (Final Fix)
+   ===================================================== */
+@media (max-width: 1024px) {
+    body {
+        flex-direction: column;
+        overflow-y: auto !important;
+        height: auto;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: -260px;
+        /* var(--sidebar-w) */
+        top: 0;
+        bottom: 0;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        box-shadow: 10px 0 40px rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar.open {
+        left: 0 !important;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .main-content {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+        width: 100%;
+    }
+
+    .top-header {
+        position: sticky;
+        top: 0;
+        padding: 12px 16px;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-card {
+        min-width: 0;
+        max-width: none;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .search-wrap,
+    .filter-wrap {
+        width: 100% !important;
+    }
+
+    .premium-table {
+        min-width: 700px;
+    }
+
+    .modal-box {
+        width: 95% !important;
+        margin: 10px;
+    }
+}
+
+@media (max-width: 640px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.mobile-toggle {
+    display: none;
+    background: var(--violet-100);
+    color: var(--violet-700);
+    border: none;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-right: 8px;
+}
+
+@media (max-width: 1024px) {
+    .mobile-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}

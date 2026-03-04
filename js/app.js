@@ -11,6 +11,29 @@ function setRestoreStatus(msg, isError = false) {
     }
 }
 
+// Global Sidebar Toggle for Mobile
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    sidebar.classList.toggle('open');
+
+    // Manage overlay
+    let overlay = document.querySelector('.sidebar-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        overlay.onclick = toggleSidebar;
+        document.body.appendChild(overlay);
+    }
+
+    if (sidebar.classList.contains('open')) {
+        overlay.style.display = 'block';
+    } else {
+        overlay.style.display = 'none';
+    }
+}
+
 // Proactive Database Health Check
 async function checkFirestoreHealth() {
     console.log("Running Firestore Health Check...");

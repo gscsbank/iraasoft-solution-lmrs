@@ -126,10 +126,14 @@
 
     <!-- Main Content -->
     <main class="main-content">
+        <!-- Header -->
         <header class="top-header">
+            <button class="mobile-toggle" onclick="toggleSidebar()">
+                <i data-lucide="menu"></i>
+            </button>
             <div>
-                <h2 id="currentMonthYear">Recovery Calendar</h2>
-                <p>Track follow-up schedules visually</p>
+                <h2>Loan Follow-up Calendar</h2>
+                <p>Scheduled recovery actions and promises</p>
             </div>
             <div style="display:flex;gap:10px">
                 <button onclick="changeMonth(-1)" class="btn btn-slate"><i data-lucide="chevron-left"></i></button>
@@ -159,21 +163,25 @@
     <script src="js/app.js"></script>
     <script>
         let currentYear, currentMonth;
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
         window.addEventListener('DOMContentLoaded', () => {
+            initCalendar();
+        });
+
+        async function initCalendar() {
             const now = new Date();
             currentYear = now.getFullYear();
             currentMonth = now.getMonth();
             renderCalendar();
             lucide.createIcons();
-        });
+        }
 
         async function renderCalendar() {
             const firstDay = new Date(currentYear, currentMonth, 1).getDay();
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
             const today = new Date();
 
-            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             document.getElementById('currentMonthYear').innerText = `${monthNames[currentMonth]} ${currentYear}`;
 
             const daysContainer = document.getElementById('calendarDays');

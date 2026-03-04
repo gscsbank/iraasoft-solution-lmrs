@@ -68,6 +68,9 @@
     <main class="main-content">
         <!-- Header -->
         <header class="top-header">
+            <button class="mobile-toggle" onclick="toggleSidebar()">
+                <i data-lucide="menu"></i>
+            </button>
             <div>
                 <h2>Reminders &amp; Follow-ups</h2>
                 <p>Track customer promises and scheduled actions</p>
@@ -129,14 +132,16 @@
         let allReminders = [];
         let currentFilter = 'all';
 
-        window.addEventListener('DOMContentLoaded', () => {
+        async function init() {
             lucide.createIcons();
             if (sessionStorage.getItem('lrms_role') === 'admin') {
                 document.getElementById('adminMenuLink')?.classList.remove('hidden');
                 document.getElementById('settingsMenuLink')?.classList.remove('hidden');
             }
-            setTimeout(loadData, 150);
-        });
+            await loadData();
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
 
         async function loadData() {
             try {
