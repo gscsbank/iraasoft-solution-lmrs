@@ -172,12 +172,15 @@ async function addAction(actionData) {
 
 // Helper Function: Get actions for a customer
 async function getCustomerActions(accountNo) {
+    if (!accountNo) return [];
     try {
+        const cleanAcc = accountNo.toString().trim();
         const snapshot = await db.collection("actions")
-            .where('customerAccountNo', '==', accountNo)
-            .orderBy('date', 'desc')
+            .where('customerAccountNo', '==', cleanAcc)
             .get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let actions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        actions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        return actions;
     } catch (error) {
         console.error("Error fetching actions:", error);
         return [];
