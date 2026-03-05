@@ -133,11 +133,19 @@ async function addCustomer(customerData) {
 // Helper Function: Get all customers
 async function getAllCustomers() {
     try {
-        const snapshot = await db.collection("customers").get();
+        const snapshot = await db.collection("customers").where('isDeleted', '!=', true).get();
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        console.error("Error fetching customers:", error);
-        return [];
+        // Fallback for missing index: get all and filter locally
+        try {
+            const snapshot = await db.collection("customers").get();
+            return snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(c => !c.isDeleted);
+        } catch (e) {
+            console.error("Error fetching customers:", e);
+            return [];
+        }
     }
 }
 
@@ -150,8 +158,9 @@ async function getCustomerByAccountNo(accountNo) {
         const snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
         console.log(`Firestore result for [${cleanAcc}]: ${snapshot.empty ? 'Empty' : 'Found ' + snapshot.docs.length + ' doc(s)'}`);
         if (snapshot.empty) return null;
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...doc.data() };
+        const docInfo = snapshot.docs.find(doc => !doc.data().isDeleted);
+        if (!docInfo) return null;
+        return { id: docInfo.id, ...docInfo.data() };
     } catch (error) {
         console.error("Error fetching customer:", error);
         return null;
@@ -178,7 +187,9 @@ async function getCustomerActions(accountNo) {
         const snapshot = await db.collection("actions")
             .where('customerAccountNo', '==', cleanAcc)
             .get();
-        let actions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let actions = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(a => !a.isDeleted); // Filter locally due to possible missing index
         actions.sort((a, b) => new Date(b.date) - new Date(a.date));
         return actions;
     } catch (error) {
@@ -231,22 +242,67 @@ async function updateCustomer(accountNo, updatedData) {
     }
 }
 
-// Helper Function: Delete Customer and associated Actions
+// Helper Function: Delete Customer (Soft Delete)
 async function deleteCustomer(accountNo) {
     try {
         const customer = await getCustomerByAccountNo(accountNo);
         if (customer) {
-            await db.collection("customers").doc(customer.id).delete();
-            // Delete associated actions (need to loop in Firestore or use batch)
-            const actionsSnapshot = await db.collection("actions").where('customerAccountNo', '==', accountNo).get();
-            const batch = db.batch();
-            actionsSnapshot.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+            await db.collection("customers").doc(customer.id).update({
+                isDeleted: true,
+                deletedAt: new Date().toISOString()
+            });
             return true;
         }
         return false;
     } catch (error) {
         console.error("Error deleting customer:", error);
+        return false;
+    }
+}
+
+// Helper Function: Get Deleted Customers
+async function getDeletedCustomers() {
+    try {
+        const snapshot = await db.collection("customers").where('isDeleted', '==', true).get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Error fetching deleted customers:", error);
+        return [];
+    }
+}
+
+// Helper Function: Restore a Soft-Deleted Customer
+async function restoreCustomer(docId) {
+    try {
+        await db.collection("customers").doc(docId).update({
+            isDeleted: firebase.firestore.FieldValue.delete(),
+            deletedAt: firebase.firestore.FieldValue.delete()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error restoring customer:", error);
+        return false;
+    }
+}
+
+// Helper Function: Delete Customer Permanently (and associated Actions & Documents)
+async function permanentlyDeleteCustomer(docId, accountNo) {
+    try {
+        await db.collection("customers").doc(docId).delete();
+
+        // Delete associated actions
+        const actionsSnapshot = await db.collection("actions").where('customerAccountNo', '==', accountNo).get();
+        const batch = db.batch();
+        actionsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        // Delete associated documents
+        const docsSnapshot = await db.collection("documents").where('customerAccountNo', '==', accountNo).get();
+        docsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        await batch.commit();
+        return true;
+    } catch (error) {
+        console.error("Error permanently deleting customer:", error);
         return false;
     }
 }
@@ -259,7 +315,9 @@ async function getPendingFollowUps() {
             .where('followUpDate', '<=', today)
             .where('followUpDate', '!=', "")
             .get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(a => !a.isDeleted); // Local filter
     } catch (error) {
         console.error("Error fetching follow-ups:", error);
         return [];
@@ -284,6 +342,56 @@ async function updateAction(actionId, updatedData) {
         return true;
     } catch (error) {
         console.error("Error updating action:", error);
+        return false;
+    }
+}
+
+// Helper Function: Delete Action (Soft Delete)
+async function deleteAction(actionId) {
+    try {
+        await db.collection("actions").doc(actionId).update({
+            isDeleted: true,
+            deletedAt: new Date().toISOString()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error deleting action:", error);
+        return false;
+    }
+}
+
+// Helper Function: Get Deleted Actions
+async function getDeletedActions() {
+    try {
+        const snapshot = await db.collection("actions").where('isDeleted', '==', true).get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Error fetching deleted actions:", error);
+        return [];
+    }
+}
+
+// Helper Function: Restore a Soft-Deleted Action
+async function restoreAction(docId) {
+    try {
+        await db.collection("actions").doc(docId).update({
+            isDeleted: firebase.firestore.FieldValue.delete(),
+            deletedAt: firebase.firestore.FieldValue.delete()
+        });
+        return true;
+    } catch (error) {
+        console.error("Error restoring action:", error);
+        return false;
+    }
+}
+
+// Helper Function: Delete Action Permanently
+async function permanentlyDeleteAction(docId) {
+    try {
+        await db.collection("actions").doc(docId).delete();
+        return true;
+    } catch (error) {
+        console.error("Error permanently deleting action:", error);
         return false;
     }
 }
