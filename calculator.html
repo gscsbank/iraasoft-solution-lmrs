@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interest & Penalty Calculator - LRMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .calc-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--violet-100);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .result-display {
+            background: linear-gradient(135deg, var(--violet-50), #fff);
+            border: 2px dashed var(--violet-200);
+        }
+
+        .animate-in {
+            animation: fadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <img src="assets/logo.png" alt="GSCS Logo">
+        </div>
+
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
+            <a href="reminders.html" class="nav-link">
+                <i data-lucide="bell"></i> Reminders
+            </a>
+            <a href="categories.html" class="nav-link">
+                <i data-lucide="layers"></i> Categories
+            </a>
+            <a href="calculator.html" class="nav-link active">
+                <i data-lucide="calculator"></i> Calculator
+            </a>
+            <a href="legal-actions.html" class="nav-link">
+                <i data-lucide="scale"></i> Legal Actions
+            </a>
+            <a href="closed-loans.html" class="nav-link">
+                <i data-lucide="archive"></i> Closed Loans
+            </a>
+            <a href="reports.html" class="nav-link">
+                <i data-lucide="file-bar-chart"></i> Reports
+            </a>
+            <hr class="nav-divider">
+            <a href="recycle-bin.html" class="nav-link">
+                <i data-lucide="trash-2"></i> Recycle Bin
+            </a>
+            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="top-header">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-violet-100 text-violet-600 rounded-xl">
+                    <i data-lucide="calculator" style="width:24px;height:24px"></i>
+                </div>
+                <div>
+                    <h2>Interest & Penalty Calculator</h2>
+                    <p>Calculate penalties using the standard formula (Interest × 2 / 20)</p>
+                </div>
+            </div>
+            <div class="no-print">
+                <button onclick="window.history.back()" class="btn btn-secondary">
+                    <i data-lucide="arrow-left"></i> Back
+                </button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="content-area flex items-center justify-center">
+            <div class="w-full max-w-lg animate-in">
+                <div class="card calc-card p-8 rounded-3xl">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="form-label text-violet-700 font-bold mb-3 block">Interest Amount (LKR)</label>
+                            <div class="relative">
+                                <span
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">LKR</span>
+                                <input type="number" id="interestInput" placeholder="Enter amount"
+                                    class="form-input text-xl font-bold pl-16 py-4 border-2 border-violet-100 focus:border-violet-500 rounded-2xl w-full"
+                                    oninput="calculate()">
+                            </div>
+                        </div>
+
+                        <div class="py-4 flex justify-center">
+                            <div
+                                class="w-12 h-12 bg-violet-50 text-violet-400 rounded-full flex items-center justify-center border border-violet-100">
+                                <i data-lucide="arrow-down" style="width:20px;height:20px"></i>
+                            </div>
+                        </div>
+
+                        <div class="result-display p-6 rounded-2xl relative overflow-hidden group">
+                            <div
+                                class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                <i data-lucide="zap" style="width:80px;height:80px;color:var(--violet-600)"></i>
+                            </div>
+                            <label
+                                class="text-[10px] uppercase tracking-[0.2em] font-black text-violet-400 mb-1 block">Calculated
+                                Penalty</label>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-lg font-bold text-violet-400">LKR</span>
+                                <span id="penaltyResult"
+                                    class="text-4xl font-black text-violet-700 tracking-tight">0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 pt-4">
+                            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Formula</p>
+                                <p class="text-xs font-mono font-bold text-slate-600">Int × 2 / 20</p>
+                            </div>
+                            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Rate</p>
+                                <p class="text-xs font-bold text-slate-600">10% of Interest</p>
+                            </div>
+                        </div>
+
+                        <button onclick="resetCalc()"
+                            class="w-full btn btn-ghost mt-4 text-gray-400 hover:text-gray-600">
+                            <i data-lucide="refresh-cw"></i> Reset Calculator
+                        </button>
+                    </div>
+                </div>
+
+                <p class="text-center mt-8 text-slate-400 text-xs font-medium uppercase tracking-widest">
+                    LMRS Internal Calculation Tool
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        function calculate() {
+            const interest = parseFloat(document.getElementById('interestInput').value) || 0;
+            // Formula: interest * 2 / 20 (which is 0.1 * interest)
+            const penalty = (interest * 2) / 20;
+
+            document.getElementById('penaltyResult').innerText = penalty.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function resetCalc() {
+            document.getElementById('interestInput').value = '';
+            calculate();
+        }
+
+        // Check for admin role
+        if (sessionStorage.getItem('lrms_role') === 'admin') {
+            document.getElementById('adminMenuLink')?.classList.remove('hidden');
+            document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+        }
+
+        const savedSettingsStr = localStorage.getItem('lrms_settings');
+        if (savedSettingsStr) {
+            const s = JSON.parse(savedSettingsStr);
+            if (s.bankName) {
+                const v = document.getElementById('sidebarVersion');
+                if (v) v.innerText = s.bankName + ' v1.0';
+            }
+        }
+    </script>
+</body>
+
+</html>
