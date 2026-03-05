@@ -333,29 +333,31 @@
                             </h3>
                         </div>
                         <div class="card-body">
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-4">
                                 <div>
-                                    <label class="form-label">Principal Amount (LKR)</label>
-                                    <input type="number" id="calcPrincipal" class="form-input" placeholder="0.00">
+                                    <label class="form-label text-indigo-700 font-bold">Interest Amount (LKR)</label>
+                                    <div class="relative">
+                                        <span
+                                            class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">LKR</span>
+                                        <input type="number" id="calcInterest"
+                                            class="form-input pl-12 py-3 text-lg font-bold border-2 border-indigo-100 focus:border-indigo-500"
+                                            placeholder="0.00" oninput="calculatePenalty()">
+                                    </div>
                                 </div>
-                                <div>
-                                    <label class="form-label">Annual Rate (%)</label>
-                                    <input type="number" id="calcRate" class="form-input" placeholder="24">
+
+                                <div id="calcResult"
+                                    class="p-4 bg-white rounded-xl border-2 border-dashed border-indigo-200 text-center">
+                                    <p class="text-[10px] uppercase tracking-widest font-black text-indigo-300 mb-1">
+                                        Calculated Penalty</p>
+                                    <h2 id="calcValue" class="text-2xl font-black text-indigo-700">LKR 0.00</h2>
+                                    <p class="text-[10px] text-gray-400 mt-2 font-medium">(Formula: Interest × 2 / 20)
+                                    </p>
                                 </div>
-                                <div>
-                                    <label class="form-label">Days Overdue</label>
-                                    <input type="number" id="calcDays" class="form-input" placeholder="30">
-                                </div>
-                                <div style="display:flex; align-items:flex-end">
-                                    <button id="btnCalculate" class="btn btn-primary"
-                                        style="width:100%">Calculate</button>
-                                </div>
-                            </div>
-                            <div id="calcResult" class="hidden"
-                                style="margin-top:20px; padding:12px; background:#fff; border-radius:8px; border:1px dashed #4338ca; text-align:center">
-                                <p class="text-sm text-gray-500">Calculated Interest</p>
-                                <h2 id="calcValue" style="color:#4338ca; font-weight:800; font-size:1.5rem">LKR 0.00
-                                </h2>
+
+                                <button onclick="resetDetailCalc()"
+                                    class="w-full text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-wider flex items-center justify-center gap-1">
+                                    <i data-lucide="refresh-cw" style="width:10px;height:10px"></i> Reset
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -830,29 +832,23 @@
             // wait for details to load then docs
             setTimeout(() => {
                 loadDocuments();
-                // Pre-fill calculator
-                const principalStr = document.getElementById('profileLoanAmount').innerText;
-                const principal = parseFloat(principalStr.replace(/[^\d.]/g, '')) || 0;
-                const rate = parseFloat(document.getElementById('profileInterest').innerText) || 24;
-                document.getElementById('calcPrincipal').value = principal;
-                document.getElementById('calcRate').value = rate;
             }, 500);
         });
 
         // ---- Calculator Logic ----
-        document.getElementById('btnCalculate').addEventListener('click', () => {
-            const p = parseFloat(document.getElementById('calcPrincipal').value) || 0;
-            const r = parseFloat(document.getElementById('calcRate').value) || 0;
-            const d = parseFloat(document.getElementById('calcDays').value) || 0;
+        function calculatePenalty() {
+            const interest = parseFloat(document.getElementById('calcInterest').value) || 0;
+            const penalty = (interest * 2) / 20;
+            document.getElementById('calcValue').innerText = 'LKR ' + penalty.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
 
-            if (p > 0 && r > 0 && d > 0) {
-                const interest = (p * (r / 100) * d) / 365;
-                document.getElementById('calcValue').innerText = 'LKR ' + interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                document.getElementById('calcResult').classList.remove('hidden');
-            } else {
-                alert("Please enter principal, rate, and days.");
-            }
-        });
+        function resetDetailCalc() {
+            document.getElementById('calcInterest').value = '';
+            calculatePenalty();
+        }
     </script>
 </body>
 
