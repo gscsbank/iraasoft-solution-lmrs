@@ -287,6 +287,21 @@ async function deleteCustomer(accountNo) {
             });
             await logActivity("Delete Customer", `Deleted customer: ${customer.name} (${accountNo})`, "danger");
             return true;
+        } else {
+            // Fallback for leading zero issues or space issues
+            console.warn("Soft delete failed to find customer by standard query. Trying fallback...");
+            const snapshot = await db.collection("customers").get();
+            const found = snapshot.docs.find(doc => {
+                const d = doc.data();
+                const dAcc = (d.accountNo || "").toString().trim();
+                const sAcc = accountNo.toString().trim();
+                return (dAcc === sAcc || Number(dAcc) === Number(sAcc)) && !d.isDeleted;
+            });
+            if (found) {
+                await db.collection("customers").doc(found.id).update({ isDeleted: true, deletedAt: new Date().toISOString() });
+                await logActivity("Delete Customer", `Deleted customer: ${found.data().name} (${accountNo})`, "danger");
+                return true;
+            }
         }
         return false;
     } catch (error) {
@@ -334,21 +349,40 @@ async function restoreCustomer(docId) {
 // Helper Function: Delete Customer Permanently (and associated Actions & Documents)
 async function permanentlyDeleteCustomer(docId, accountNo) {
     try {
-        await db.collection("customers").doc(docId).delete();
+        if (!docId) throw new Error("docId is required for permanent deletion.");
 
-        // Delete associated actions
-        const actionsSnapshot = await db.collection("actions").where('customerAccountNo', '==', accountNo).get();
         const batch = db.batch();
+        const cleanAcc = accountNo.toString().trim();
+
+        // 1. Delete Customer Doc
+        batch.delete(db.collection("customers").doc(docId));
+
+        // 2. Delete associated actions (String query)
+        const actionsSnapshot = await db.collection("actions").where('customerAccountNo', '==', cleanAcc).get();
         actionsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-        // Delete associated documents
-        const docsSnapshot = await db.collection("documents").where('customerAccountNo', '==', accountNo).get();
+        // 3. Delete associated actions (Numeric query fallback)
+        if (!isNaN(cleanAcc) && cleanAcc !== "") {
+            const numActions = await db.collection("actions").where('customerAccountNo', '==', Number(cleanAcc)).get();
+            numActions.forEach(doc => batch.delete(doc.ref));
+        }
+
+        // 4. Delete associated documents (String query)
+        const docsSnapshot = await db.collection("documents").where('customerAccountNo', '==', cleanAcc).get();
         docsSnapshot.forEach(doc => batch.delete(doc.ref));
 
+        // 5. Delete associated documents (Numeric query fallback)
+        if (!isNaN(cleanAcc) && cleanAcc !== "") {
+            const numDocs = await db.collection("documents").where('customerAccountNo', '==', Number(cleanAcc)).get();
+            numDocs.forEach(doc => batch.delete(doc.ref));
+        }
+
         await batch.commit();
+        await logActivity("Permanent Delete", `Hard deleted customer and all data for Acc: ${accountNo}`, "danger");
         return true;
     } catch (error) {
-        console.error("Error permanently deleting customer:", error);
+        console.error("CRITICAL ERROR in permanentlyDeleteCustomer:", error);
+        alert("Deletion Error details: " + error.message);
         return false;
     }
 }

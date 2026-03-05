@@ -66,6 +66,11 @@
         }
 
         @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
             .profile-card-top {
                 background: #fff !important;
                 color: #000 !important;
@@ -99,6 +104,8 @@
                 display: block !important;
             }
         }
+
+
 
         .print-only {
             display: none;
