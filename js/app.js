@@ -126,6 +126,7 @@ async function addCustomer(customerData) {
             return false;
         }
         await db.collection("customers").add(customerData);
+        await logActivity("Add Customer", `Added customer: ${customerData.name} (${customerData.accountNo})`, "success");
         alert("Successfully saved to Cloud!");
         return true;
     } catch (error) {
@@ -193,6 +194,7 @@ async function getCustomerByAccountNo(accountNo) {
 async function addAction(actionData) {
     try {
         await db.collection("actions").add(actionData);
+        await logActivity("Log Action", `Logged ${actionData.actionType} for Acc: ${actionData.customerAccountNo}`, "info");
         console.log("Action recorded successfully!");
         return true;
     } catch (error) {
@@ -283,6 +285,7 @@ async function deleteCustomer(accountNo) {
                 isDeleted: true,
                 deletedAt: new Date().toISOString()
             });
+            await logActivity("Delete Customer", `Deleted customer: ${customer.name} (${accountNo})`, "danger");
             return true;
         }
         return false;
@@ -314,10 +317,13 @@ async function getDeletedCustomers() {
 // Helper Function: Restore a Soft-Deleted Customer
 async function restoreCustomer(docId) {
     try {
+        const doc = await db.collection("customers").doc(docId).get();
+        const data = doc.data();
         await db.collection("customers").doc(docId).update({
             isDeleted: firebase.firestore.FieldValue.delete(),
             deletedAt: firebase.firestore.FieldValue.delete()
         });
+        await logActivity("Restore Customer", `Restored customer: ${data.name} (${data.accountNo})`, "info");
         return true;
     } catch (error) {
         console.error("Error restoring customer:", error);
@@ -389,10 +395,13 @@ async function updateAction(actionId, updatedData) {
 // Helper Function: Delete Action (Soft Delete)
 async function deleteAction(actionId) {
     try {
+        const doc = await db.collection("actions").doc(actionId).get();
+        const data = doc.data();
         await db.collection("actions").doc(actionId).update({
             isDeleted: true,
             deletedAt: new Date().toISOString()
         });
+        await logActivity("Delete Action", `Deleted history item for Acc: ${data.customerAccountNo}`, "warning");
         return true;
     } catch (error) {
         console.error("Error deleting action:", error);
@@ -422,10 +431,13 @@ async function getDeletedActions() {
 // Helper Function: Restore a Soft-Deleted Action
 async function restoreAction(docId) {
     try {
+        const doc = await db.collection("actions").doc(docId).get();
+        const data = doc.data();
         await db.collection("actions").doc(docId).update({
             isDeleted: firebase.firestore.FieldValue.delete(),
             deletedAt: firebase.firestore.FieldValue.delete()
         });
+        await logActivity("Restore Action", `Restored history item for Acc: ${data.customerAccountNo}`, "info");
         return true;
     } catch (error) {
         console.error("Error restoring action:", error);
@@ -608,6 +620,7 @@ async function changeUserPassword(id, newPassword) {
 async function saveDocument(docData) {
     try {
         await db.collection("documents").add(docData);
+        await logActivity("Add Document", `Added document: ${docData.name} for Acc: ${docData.customerAccountNo}`, "success");
         return true;
     } catch (error) {
         console.error("Error saving document:", error);
@@ -634,7 +647,10 @@ async function getCustomerDocuments(accountNo) {
 
 async function deleteDocument(id) {
     try {
+        const doc = await db.collection("documents").doc(id).get();
+        const data = doc.data();
         await db.collection("documents").doc(id).delete();
+        await logActivity("Delete Document", `Deleted document: ${data.name} for Acc: ${data.customerAccountNo}`, "danger");
         return true;
     } catch (error) {
         console.error("Error deleting document:", error);
@@ -673,3 +689,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+// ---- Activity Logging System ----
+async function logActivity(action, details, type = 'info') {
+    try {
+        const logData = {
+            action,
+            details,
+            type, // info, success, warning, danger
+            timestamp: new Date().toISOString()
+        };
+        await db.collection("activity_logs").add(logData);
+    } catch (error) {
+        console.error("Error logging activity:", error);
+    }
+}
+
+async function getActivityLogs(limitCount = 100) {
+    try {
+        const snapshot = await db.collection("activity_logs")
+            .orderBy('timestamp', 'desc')
+            .limit(limitCount)
+            .get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Error fetching logs:", error);
+        return [];
+    }
+}
+
+async function deleteActivityLog(id) {
+    try {
+        await db.collection("activity_logs").doc(id).delete();
+        return true;
+    } catch (error) {
+        console.error("Error deleting log:", error);
+        return false;
+    }
+}
+
+async function clearAllLogs() {
+    try {
+        const snapshot = await db.collection("activity_logs").get();
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        return true;
+    } catch (error) {
+        console.error("Error clearing logs:", error);
+        return false;
+    }
+}
