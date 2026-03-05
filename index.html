@@ -414,9 +414,10 @@
             const statusF = document.getElementById('statusFilter').value;
 
             const filtered = customers.filter(c => {
-                const matchesSearch = c.accountNo.toLowerCase().includes(filterQuery) ||
-                    c.name.toLowerCase().includes(filterQuery);
-                const matchesStatus = statusF === 'all' || c.status.toLowerCase().includes(statusF.toLowerCase());
+                const accStr = (c.accountNo || '').toString().toLowerCase();
+                const nameStr = (c.name || '').toString().toLowerCase();
+                const matchesSearch = accStr.includes(filterQuery) || nameStr.includes(filterQuery);
+                const matchesStatus = statusF === 'all' || (c.status || '').toLowerCase().includes(statusF.toLowerCase());
 
                 const match = matchesSearch && matchesStatus;
                 if (match) { total++; if (c.status.includes('High Risk')) risk++; if (c.status.includes('Legal Action')) legal++; }

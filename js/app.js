@@ -114,6 +114,11 @@ window.handleLogout = function () {
 async function addCustomer(customerData) {
     console.log("Checking for duplicate before adding:", customerData.accountNo);
     try {
+        // Force accountNo to be a string to avoid type mismatches in queries
+        if (customerData.accountNo) {
+            customerData.accountNo = customerData.accountNo.toString().trim();
+        }
+
         const existing = await getCustomerByAccountNo(customerData.accountNo);
         if (existing) {
             console.warn("Duplicate found in Firestore:", existing);
@@ -149,10 +154,33 @@ async function getCustomerByAccountNo(accountNo) {
     if (!accountNo) { console.warn("getCustomerByAccountNo: empty acc"); return null; }
     try {
         const cleanAcc = accountNo.toString().trim();
-        const snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
-        if (snapshot.empty) return null;
-        // Filter out soft-deleted ones even if they have the account number
-        const docInfo = snapshot.docs.find(doc => doc.data().isDeleted !== true && doc.data().isDeleted !== "true");
+
+        // Try multiple query types to handle legacy data (String vs Number)
+        // 1. Try exact string match
+        let snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
+
+        // 2. If not found and it's numeric, try number match
+        if (snapshot.empty && !isNaN(cleanAcc) && cleanAcc !== "") {
+            const numAcc = Number(cleanAcc);
+            snapshot = await db.collection("customers").where('accountNo', '==', numAcc).get();
+
+            // 3. If still empty, try string without leading zeros
+            if (snapshot.empty) {
+                snapshot = await db.collection("customers").where('accountNo', '==', numAcc.toString()).get();
+            }
+        }
+
+        if (snapshot.empty) {
+            console.warn(`Customer not found with acc: ${cleanAcc}`);
+            return null;
+        }
+
+        // Filter out soft-deleted ones locally
+        const docInfo = snapshot.docs.find(doc => {
+            const d = doc.data();
+            return d.isDeleted !== true && d.isDeleted !== "true";
+        });
+
         if (!docInfo) return null;
         return { id: docInfo.id, ...docInfo.data() };
     } catch (error) {
@@ -178,12 +206,20 @@ async function getCustomerActions(accountNo) {
     if (!accountNo) return [];
     try {
         const cleanAcc = accountNo.toString().trim();
-        const snapshot = await db.collection("actions")
+        let snapshot = await db.collection("actions")
             .where('customerAccountNo', '==', cleanAcc)
             .get();
+
+        // Try numeric query if string query empty
+        if (snapshot.empty && !isNaN(cleanAcc) && cleanAcc !== "") {
+            snapshot = await db.collection("actions")
+                .where('customerAccountNo', '==', Number(cleanAcc))
+                .get();
+        }
+
         let actions = snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(a => !a.isDeleted); // Filter locally due to possible missing index
+            .filter(a => !a.isDeleted);
         actions.sort((a, b) => new Date(b.date) - new Date(a.date));
         return actions;
     } catch (error) {
@@ -581,7 +617,14 @@ async function saveDocument(docData) {
 
 async function getCustomerDocuments(accountNo) {
     try {
-        const snapshot = await db.collection("documents").where('customerAccountNo', '==', accountNo).get();
+        const cleanAcc = accountNo.toString().trim();
+        let snapshot = await db.collection("documents").where('customerAccountNo', '==', cleanAcc).get();
+
+        // Try numeric query if string query empty
+        if (snapshot.empty && !isNaN(cleanAcc) && cleanAcc !== "") {
+            snapshot = await db.collection("documents").where('customerAccountNo', '==', Number(cleanAcc)).get();
+        }
+
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
         console.error("Error fetching documents:", error);
