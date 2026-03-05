@@ -1,5 +1,5 @@
 // js/app.js
-console.log("LRMS Script Version: 3.1 - DIAGNOSTIC MODE");
+console.log("LRMS Script Version: 3.3 - OPTIMIZED");
 
 // UI Helper for status updates
 function setRestoreStatus(msg, isError = false) {
@@ -133,19 +133,14 @@ async function addCustomer(customerData) {
 // Helper Function: Get all customers
 async function getAllCustomers() {
     try {
-        const snapshot = await db.collection("customers").where('isDeleted', '!=', true).get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Fetch all and filter locally to include records that don't have isDeleted field yet
+        const snapshot = await db.collection("customers").get();
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(c => c.isDeleted !== true && c.isDeleted !== "true");
     } catch (error) {
-        // Fallback for missing index: get all and filter locally
-        try {
-            const snapshot = await db.collection("customers").get();
-            return snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(c => !c.isDeleted);
-        } catch (e) {
-            console.error("Error fetching customers:", e);
-            return [];
-        }
+        console.error("Error fetching customers:", error);
+        return [];
     }
 }
 
@@ -154,11 +149,10 @@ async function getCustomerByAccountNo(accountNo) {
     if (!accountNo) { console.warn("getCustomerByAccountNo: empty acc"); return null; }
     try {
         const cleanAcc = accountNo.toString().trim();
-        console.log(`Checking Firestore for AccountNo: [${cleanAcc}]`);
         const snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
-        console.log(`Firestore result for [${cleanAcc}]: ${snapshot.empty ? 'Empty' : 'Found ' + snapshot.docs.length + ' doc(s)'}`);
         if (snapshot.empty) return null;
-        const docInfo = snapshot.docs.find(doc => !doc.data().isDeleted);
+        // Filter out soft-deleted ones even if they have the account number
+        const docInfo = snapshot.docs.find(doc => doc.data().isDeleted !== true && doc.data().isDeleted !== "true");
         if (!docInfo) return null;
         return { id: docInfo.id, ...docInfo.data() };
     } catch (error) {
@@ -220,7 +214,9 @@ async function updateCustomerStatus(accountNo, newStatus, statusDate) {
 async function getCustomersByStatus(status) {
     try {
         const snapshot = await db.collection("customers").where('status', '==', status).get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(c => c.isDeleted !== true && c.isDeleted !== "true");
     } catch (error) {
         console.error("Error fetching customers by status:", error);
         return [];
@@ -262,31 +258,18 @@ async function deleteCustomer(accountNo) {
 
 // Helper Function: Get Deleted Customers
 async function getDeletedCustomers() {
-    console.log("Fetching deleted customers...");
     try {
         const snapshot = await db.collection("customers").where('isDeleted', '==', true).get();
-        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Found ${results.length} deleted customers via index.`);
-
-        if (results.length === 0) {
-            console.log("No results via index, trying fallback scan...");
-            const fullSnapshot = await db.collection("customers").get();
-            const fallbackResults = fullSnapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(c => c.isDeleted === true || c.isDeleted === "true");
-            console.log(`Found ${fallbackResults.length} deleted customers via fallback scan.`);
-            return fallbackResults;
-        }
-        return results;
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        console.warn("Index query failed for deleted customers. Using fallback scan.");
+        // Fallback for missing index: get all and filter locally
         try {
             const snapshot = await db.collection("customers").get();
             return snapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
                 .filter(c => c.isDeleted === true || c.isDeleted === "true");
         } catch (e) {
-            console.error("Critical error fetching deleted customers:", e);
+            console.error("Error fetching deleted customers:", e);
             return [];
         }
     }
@@ -383,34 +366,18 @@ async function deleteAction(actionId) {
 
 // Helper Function: Get Deleted Actions
 async function getDeletedActions() {
-    console.log("Fetching deleted actions...");
     try {
-        // Try the indexed query first
         const snapshot = await db.collection("actions").where('isDeleted', '==', true).get();
-        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log(`Found ${results.length} deleted actions via index.`);
-
-        // If results is 0, it might be due to missing index OR no deleted actions.
-        // We check fallback just in case the query didn't throw an error but failed to find results.
-        if (results.length === 0) {
-            console.log("No results via index, trying fallback scan...");
-            const fullSnapshot = await db.collection("actions").get();
-            const fallbackResults = fullSnapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
-                .filter(a => a.isDeleted === true || a.isDeleted === "true");
-            console.log(`Found ${fallbackResults.length} deleted actions via fallback scan.`);
-            return fallbackResults;
-        }
-        return results;
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        console.warn("Index query failed for deleted actions (likely missing index). Using fallback scan.");
+        // Fallback for missing index: get all and filter locally
         try {
             const snapshot = await db.collection("actions").get();
             return snapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
                 .filter(a => a.isDeleted === true || a.isDeleted === "true");
         } catch (e) {
-            console.error("Critical error fetching deleted actions:", e);
+            console.error("Error fetching deleted actions:", e);
             return [];
         }
     }
