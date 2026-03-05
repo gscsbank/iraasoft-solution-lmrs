@@ -262,12 +262,33 @@ async function deleteCustomer(accountNo) {
 
 // Helper Function: Get Deleted Customers
 async function getDeletedCustomers() {
+    console.log("Fetching deleted customers...");
     try {
         const snapshot = await db.collection("customers").where('isDeleted', '==', true).get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Found ${results.length} deleted customers via index.`);
+
+        if (results.length === 0) {
+            console.log("No results via index, trying fallback scan...");
+            const fullSnapshot = await db.collection("customers").get();
+            const fallbackResults = fullSnapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(c => c.isDeleted === true || c.isDeleted === "true");
+            console.log(`Found ${fallbackResults.length} deleted customers via fallback scan.`);
+            return fallbackResults;
+        }
+        return results;
     } catch (error) {
-        console.error("Error fetching deleted customers:", error);
-        return [];
+        console.warn("Index query failed for deleted customers. Using fallback scan.");
+        try {
+            const snapshot = await db.collection("customers").get();
+            return snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(c => c.isDeleted === true || c.isDeleted === "true");
+        } catch (e) {
+            console.error("Critical error fetching deleted customers:", e);
+            return [];
+        }
     }
 }
 
@@ -362,12 +383,36 @@ async function deleteAction(actionId) {
 
 // Helper Function: Get Deleted Actions
 async function getDeletedActions() {
+    console.log("Fetching deleted actions...");
     try {
+        // Try the indexed query first
         const snapshot = await db.collection("actions").where('isDeleted', '==', true).get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Found ${results.length} deleted actions via index.`);
+
+        // If results is 0, it might be due to missing index OR no deleted actions.
+        // We check fallback just in case the query didn't throw an error but failed to find results.
+        if (results.length === 0) {
+            console.log("No results via index, trying fallback scan...");
+            const fullSnapshot = await db.collection("actions").get();
+            const fallbackResults = fullSnapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(a => a.isDeleted === true || a.isDeleted === "true");
+            console.log(`Found ${fallbackResults.length} deleted actions via fallback scan.`);
+            return fallbackResults;
+        }
+        return results;
     } catch (error) {
-        console.error("Error fetching deleted actions:", error);
-        return [];
+        console.warn("Index query failed for deleted actions (likely missing index). Using fallback scan.");
+        try {
+            const snapshot = await db.collection("actions").get();
+            return snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(a => a.isDeleted === true || a.isDeleted === "true");
+        } catch (e) {
+            console.error("Critical error fetching deleted actions:", e);
+            return [];
+        }
     }
 }
 
