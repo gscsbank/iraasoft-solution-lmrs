@@ -332,6 +332,7 @@
                                         <option value="Attention Letter 2">Attention Letter 2</option>
                                         <option value="Attention Letter 3">Attention Letter 3</option>
                                         <option value="Letter of Demand (LOD)">Letter of Demand (LOD)</option>
+                                        <option value="Normal Text Message sent">Normal Text Message sent (Sms මගින් දැනුවත් කළා)</option>
                                         <option value="Informing by visiting the residence">Informing by visiting the
                                             residence</option>
                                     </select>
@@ -539,6 +540,7 @@
                             <option value="Attention Letter 2">Attention Letter 2</option>
                             <option value="Attention Letter 3">Attention Letter 3</option>
                             <option value="Letter of Demand (LOD)">Letter of Demand (LOD)</option>
+                            <option value="Normal Text Message sent">Normal Text Message sent</option>
                             <option value="Informing by visiting the residence">Informing by visiting the residence
                             </option>
                         </select>
@@ -687,6 +689,7 @@
                 if (action.actionType.toLowerCase().includes("call")) { icon = "phone-call"; color = "violet"; }
                 else if (action.actionType.toLowerCase().includes("whatsapp")) { icon = "message-circle"; color = "emerald"; }
                 else if (action.actionType.includes("LOD")) { icon = "alert-octagon"; color = "red"; }
+                else if (action.actionType.includes("Normal Text Message")) { icon = "smartphone"; color = "blue"; }
                 else if (action.actionType.includes("Attention")) { icon = "mail-warning"; color = "amber"; }
                 else if (action.actionType.includes("visiting")) { icon = "map-pin"; color = "emerald"; }
 
