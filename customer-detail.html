@@ -66,46 +66,150 @@
         }
 
         @media print {
+            @page {
+                margin: 15mm;
+                size: portrait;
+            }
+
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-            }
-
-            .profile-card-top {
-                background: #fff !important;
                 color: #000 !important;
-                border: 1px solid #000;
-            }
-
-            .profile-info-tile {
-                background: #fff !important;
-                border: 1px solid #000 !important;
-            }
-
-            .tl-card {
-                border: 1px solid #000 !important;
-            }
-
-            .sidebar,
-            .no-print {
-                display: none !important;
-            }
-
-            .main-content {
-                overflow: visible !important;
+                background: transparent !important;
+                box-shadow: none !important;
             }
 
             body {
-                overflow: auto !important;
-                height: auto !important;
+                background: #fff !important;
+                font-size: 10pt;
+            }
+
+            .sidebar,
+            .top-header,
+            .no-print,
+            .btn,
+            .modal-wrapper,
+            .toast-container,
+            #loadingState,
+            .wa-section,
+            .log-action-card,
+            .calc-section,
+            .docs-section {
+                display: none !important;
+            }
+
+            .main-content,
+            .content-area {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                margin-bottom: 20px !important;
             }
 
             .print-only {
                 display: block !important;
             }
+
+            .report-header {
+                text-align: center;
+                border-bottom: 2px solid #000;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+
+            .report-header img {
+                height: 60px;
+                margin-bottom: 10px;
+            }
+
+            .report-header h1 {
+                font-size: 18pt;
+                font-weight: 800;
+                margin: 0;
+            }
+
+            .report-header h2 {
+                font-size: 14pt;
+                font-weight: 700;
+                margin: 5px 0;
+            }
+
+            .report-header p {
+                font-size: 9pt;
+                color: #555 !important;
+            }
+
+            .info-table,
+            .history-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 25px;
+            }
+
+            .info-table th,
+            .info-table td,
+            .history-table th,
+            .history-table td {
+                border: 1px solid #000;
+                padding: 8px 12px;
+                text-align: left;
+            }
+
+            .info-table th {
+                background-color: #f2f2f2 !important;
+                width: 30%;
+                font-weight: 700;
+            }
+
+            .history-table th {
+                background-color: #f2f2f2 !important;
+                font-weight: 700;
+                font-size: 9pt;
+            }
+
+            .history-table td {
+                font-size: 9pt;
+            }
+
+            .signature-section {
+                margin-top: 50px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 50px;
+                text-align: center;
+            }
+
+            .signature-box {
+                border-top: 1px solid #000;
+                padding-top: 8px;
+            }
+
+            /* Fix for the hidden "white on white" text */
+            #profileName,
+            #profileAccNo {
+                color: #000 !important;
+            }
+
+            .profile-card-top {
+                background: #fff !important;
+                border: 1px solid #000 !important;
+                padding: 15px !important;
+                color: #000 !important;
+            }
+
+            .badge {
+                border: 1px solid #000 !important;
+                background: transparent !important;
+                color: #000 !important;
+            }
         }
-
-
 
         .print-only {
             display: none;
@@ -194,11 +298,55 @@
             </button>
         </header>
 
-        <!-- Print Header -->
-        <div class="print-only" style="text-align:center;padding:20px;border-bottom:2px solid #000;margin-bottom:20px">
-            <h1 style="font-size:1.5rem;font-weight:800">GALAPITIYAGAMA SANASA BANK</h1>
-            <h2 style="font-size:1.2rem;font-weight:700">Customer Action History Report</h2>
-            <p style="font-size:0.8rem;margin-top:10px">Report Printed: <span id="printDate"></span></p>
+        <!-- Print Report Header -->
+        <div class="print-only report-header">
+            <img src="assets/logo.png" alt="Logo" onerror="this.style.display='none'">
+            <h1 id="printBankName">GALAPITIYAGAMA SANASA BANK</h1>
+            <h2>Customer Action History Report</h2>
+            <p>Report Printed: <span id="printDate"></span></p>
+        </div>
+
+        <!-- Print Customer Info Table -->
+        <div class="print-only">
+            <h3 style="margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:5px">Customer Profile</h3>
+            <table class="info-table">
+                <tr>
+                    <th>Account Holder Name</th>
+                    <td id="printCustName" style="font-weight:700">--</td>
+                </tr>
+                <tr>
+                    <th>Account Number</th>
+                    <td id="printCustAccNo" style="font-weight:700">--</td>
+                </tr>
+                <tr>
+                    <th>Phone Number</th>
+                    <td id="printCustPhone">--</td>
+                </tr>
+                <tr>
+                    <th>Loan Category</th>
+                    <td id="printCustCategory">--</td>
+                </tr>
+                <tr>
+                    <th>Granted Date</th>
+                    <td id="printCustLoanDate">--</td>
+                </tr>
+                <tr>
+                    <th>Loan Amount</th>
+                    <td id="printCustLoanAmount">--</td>
+                </tr>
+                <tr>
+                    <th>Guarantor 1</th>
+                    <td id="printCustG1">--</td>
+                </tr>
+                <tr>
+                    <th>Guarantor 2</th>
+                    <td id="printCustG2">--</td>
+                </tr>
+                <tr>
+                    <th>Current Status</th>
+                    <td id="printCustStatus">--</td>
+                </tr>
+            </table>
         </div>
 
         <div class="content-area">
@@ -332,7 +480,8 @@
                                         <option value="Attention Letter 2">Attention Letter 2</option>
                                         <option value="Attention Letter 3">Attention Letter 3</option>
                                         <option value="Letter of Demand (LOD)">Letter of Demand (LOD)</option>
-                                        <option value="Normal Text Message sent">Normal Text Message sent (Sms මගින් දැනුවත් කළා)</option>
+                                        <option value="Normal Text Message sent">Normal Text Message sent (Sms මගින්
+                                            දැනුවත් කළා)</option>
                                         <option value="Informing by visiting the residence">Informing by visiting the
                                             residence</option>
                                     </select>
@@ -365,26 +514,46 @@
 
                     <!-- Timeline -->
                     <div class="lg:col-span-2 card">
-                        <div class="card-header">
+                        <div class="card-header no-print">
                             <h3><i data-lucide="history" style="color:#7c3aed"></i> Action History</h3>
                             <span class="pill pill-violet" id="actionCount">0 Logs</span>
                         </div>
                         <div class="card-body">
-                            <div class="timeline-track" id="timelineContainer">
+                            <div class="timeline-track no-print" id="timelineContainer">
                                 <div style="text-align:center;color:#9ca3af;padding:20px;font-style:italic">No actions
                                     recorded yet.</div>
                             </div>
 
-                            <!-- Print Signatures (Print Only) -->
-                            <div class="hidden print:grid"
-                                style="margin-top:50px;grid-template-columns:1fr 1fr;gap:40px;text-align:center">
-                                <div>
-                                    <div style="border-top:1px solid #000;margin-bottom:8px"></div>
+                            <!-- Print History Table -->
+                            <div class="print-only">
+                                <h3 style="margin-bottom:10px; border-bottom:1px solid #000; padding-bottom:5px">Action
+                                    History</h3>
+                                <table class="history-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:100px">Date</th>
+                                            <th style="width:150px">Action Type</th>
+                                            <th>Customer's Response / Officer Notes</th>
+                                            <th style="width:100px">Follow-up</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="printHistoryBody">
+                                        <!-- History items will be injected here for print -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Print Signatures -->
+                            <div class="print-only signature-section">
+                                <div class="signature-box">
                                     <p style="font-weight:700">Prepared By (Officer)</p>
+                                    <p style="font-size:8pt; margin-top:5px; color:#666 !important">Date:
+                                        ________________</p>
                                 </div>
-                                <div>
-                                    <div style="border-top:1px solid #000;margin-bottom:8px"></div>
+                                <div class="signature-box">
                                     <p style="font-weight:700">Reviewed By (Manager)</p>
+                                    <p style="font-size:8pt; margin-top:5px; color:#666 !important">Date:
+                                        ________________</p>
                                 </div>
                             </div>
                         </div>
@@ -605,6 +774,17 @@
             const phone = customer.phone || '';
             document.getElementById('profilePhone').innerText = phone || 'N/A';
 
+            // Populate Print-Only Table
+            document.getElementById('printCustName').innerText = customer.name;
+            document.getElementById('printCustAccNo').innerText = customer.accountNo;
+            document.getElementById('printCustPhone').innerText = phone || 'N/A';
+            document.getElementById('printCustCategory').innerText = customer.category || 'N/A';
+            document.getElementById('printCustLoanDate').innerText = customer.loanDate || 'N/A';
+            document.getElementById('printCustLoanAmount').innerText = 'LKR ' + customer.loanAmount.toLocaleString();
+            document.getElementById('printCustG1').innerText = customer.guarantor1 || 'None';
+            document.getElementById('printCustG2').innerText = customer.guarantor2 || 'None';
+            document.getElementById('printCustStatus').innerText = customer.status;
+
             const waBtn = document.getElementById('whatsappBtn');
             const waSection = document.getElementById('waSection');
             if (phone && phone.trim() !== '') {
@@ -676,13 +856,18 @@
         async function loadTimeline() {
             const actions = await getCustomerActions(currentAccountNo);
             const container = document.getElementById('timelineContainer');
-            document.getElementById('actionCount').innerText = actions.length;
+            const printBody = document.getElementById('printHistoryBody');
+            if (document.getElementById('actionCount')) {
+                document.getElementById('actionCount').innerText = actions.length;
+            }
 
             if (actions.length === 0) {
-                container.innerHTML = `<div style="text-align:center;color:#9ca3af;padding:20px;font-style:italic">No actions recorded yet.</div>`;
+                if (container) container.innerHTML = `<div style="text-align:center;color:#9ca3af;padding:20px;font-style:italic">No actions recorded yet.</div>`;
+                if (printBody) printBody.innerHTML = `<tr><td colspan="4" style="text-align:center; font-style:italic">No actions recorded yet.</td></tr>`;
                 return;
             }
-            container.innerHTML = '';
+            if (container) container.innerHTML = '';
+            if (printBody) printBody.innerHTML = '';
 
             actions.forEach(action => {
                 let icon = "file-text", color = "violet";
@@ -694,41 +879,61 @@
                 else if (action.actionType.includes("visiting")) { icon = "map-pin"; color = "emerald"; }
 
                 const dateStr = new Date(action.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                const item = document.createElement('div');
-                item.className = 'tl-item';
-                item.innerHTML = `
-                    <div class="tl-dot"><i data-lucide="${icon}" class="stat-icon ${color}" style="width:16px;height:16px;background:none"></i></div>
-                    <div class="tl-card">
-                        <div class="tl-card-header">
-                            <div>
-                                <h5>${action.actionType}</h5>
-                                <p style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-top:2px">${dateStr}</p>
+
+                // Timeline Item (Screen)
+                if (container) {
+                    const item = document.createElement('div');
+                    item.className = 'tl-item';
+                    item.innerHTML = `
+                        <div class="tl-dot"><i data-lucide="${icon}" class="stat-icon ${color}" style="width:16px;height:16px;background:none"></i></div>
+                        <div class="tl-card">
+                            <div class="tl-card-header">
+                                <div>
+                                    <h5>${action.actionType}</h5>
+                                    <p style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-top:2px">${dateStr}</p>
+                                </div>
+                                <button onclick="openEditActionModal('${action.id}')" class="btn btn-ghost no-print" style="padding:4px;color:#9ca3af">
+                                    <i data-lucide="pencil" style="width:14px;height:14px"></i>
+                                </button>
+                                <button onclick="handleDeleteHistoryItem(event, '${action.id}')" class="btn btn-ghost no-print" style="padding:4px;color:#ef4444;margin-left:4px" title="Delete Action">
+                                    <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                                </button>
                             </div>
-                            <button onclick="openEditActionModal('${action.id}')" class="btn btn-ghost no-print" style="padding:4px;color:#9ca3af">
-                                <i data-lucide="pencil" style="width:14px;height:14px"></i>
-                            </button>
-                            <button onclick="handleDeleteHistoryItem(event, '${action.id}')" class="btn btn-ghost no-print" style="padding:4px;color:#ef4444;margin-left:4px" title="Delete Action">
-                                <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-                            </button>
-                        </div>
-                        ${action.response ? `
-                        <div style="background:#f9fafb;border:1px solid #f1f5f9;border-radius:10px;padding:10px;margin-bottom:10px">
-                            <p style="font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:2px">Response</p>
-                            <p style="font-size:0.8rem;color:#4b5563;font-style:italic">"${action.response}"</p>
-                        </div>` : ''}
-                        ${action.followUpDate ? `
-                        <div style="display:inline-flex;align-items:center;gap:6px;background:#fff1f2;padding:4px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;color:#be123c;margin-bottom:10px">
-                            <i data-lucide="bell-ring" style="width:12px;height:12px"></i> Follow-up: ${action.followUpDate}
-                        </div>` : ''}
-                        ${action.officerNote ? `
-                        <div>
-                            <p style="font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:2px">Officer Note</p>
-                            <p style="font-size:0.8rem;color:#6b7280">${action.officerNote}</p>
-                        </div>` : ''}
-                    </div>`;
-                container.appendChild(item);
+                            ${action.response ? `
+                            <div style="background:#f9fafb;border:1px solid #f1f5f9;border-radius:10px;padding:10px;margin-bottom:10px">
+                                <p style="font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:2px">Response</p>
+                                <p style="font-size:0.8rem;color:#4b5563;font-style:italic">"${action.response}"</p>
+                            </div>` : ''}
+                            ${action.followUpDate ? `
+                            <div style="display:inline-flex;align-items:center;gap:6px;background:#fff1f2;padding:4px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;color:#be123c;margin-bottom:10px">
+                                <i data-lucide="bell-ring" style="width:12px;height:12px"></i> Follow-up: ${action.followUpDate}
+                            </div>` : ''}
+                            ${action.officerNote ? `
+                            <div>
+                                <p style="font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:2px">Officer Note</p>
+                                <p style="font-size:0.8rem;color:#6b7280">${action.officerNote}</p>
+                            </div>` : ''}
+                        </div>`;
+                    container.appendChild(item);
+                }
+
+                // History Row (Print)
+                if (printBody) {
+                    const tr = document.createElement('tr');
+                    let notes = [];
+                    if (action.response) notes.push(`<strong>Response:</strong> ${action.response}`);
+                    if (action.officerNote) notes.push(`<strong>Note:</strong> ${action.officerNote}`);
+
+                    tr.innerHTML = `
+                            <td>${dateStr}</td>
+                            <td style="font-weight:700">${action.actionType}</td>
+                            <td>${notes.join('<br>') || '-'}</td>
+                            <td>${action.followUpDate || '-'}</td>
+                        `;
+                    printBody.appendChild(tr);
+                }
             });
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         document.getElementById('actionForm').addEventListener('submit', async (e) => {
