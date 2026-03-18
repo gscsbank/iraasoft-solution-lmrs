@@ -808,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.add('fade-out');
         
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { cache: 'no-store' });
             if (!response.ok) throw new Error("Page not found");
             const html = await response.text();
             
@@ -825,6 +825,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Swap content
             mainContent.innerHTML = newMain.innerHTML;
             mainContent.className = newMain.className; // Keep styles
+
+            // Sync Sidebar Fragments (Crucial for consistency)
+            const oldNav = document.querySelector('.sidebar-nav');
+            const newNav = doc.querySelector('.sidebar-nav');
+            if (oldNav && newNav) oldNav.innerHTML = newNav.innerHTML;
+
+            const oldBottom = document.querySelector('.sidebar-bottom');
+            const newBottom = doc.querySelector('.sidebar-bottom');
+            if (oldBottom && newBottom) oldBottom.innerHTML = newBottom.innerHTML;
+
             mainContent.classList.remove('fade-out');
             mainContent.classList.add('fade-in');
 
