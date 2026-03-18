@@ -1,19 +1,16 @@
 // js/firebase-config.js
-// 1. Visit Firebase Console: https://console.firebase.google.com/
-// 2. Add Project -> Build -> Firestore Database -> Create Database (Test Mode)
-// 3. Project Overview -> Click Web Icon (</>) -> Register App
-// 4. COPY the config object and PASTE IT HERE.
+// New Firebase Project: iraasoft-solution-lms
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCCOPhWNcjwuSJJlsF5DQBWaI6BhabRhWw",
-    authDomain: "iraasoft-solution-lrms.firebaseapp.com",
-    projectId: "iraasoft-solution-lrms",
-    storageBucket: "iraasoft-solution-lrms.firebasestorage.app",
-    messagingSenderId: "415533577429",
-    appId: "1:415533577429:web:1cf9bbe45fd10c72e4de5c",
-    measurementId: "G-D7CEZNYBDR"
+    apiKey: "AIzaSyCFFDhX2nNPhl0IfHLsZsExV3j-hjUdo74",
+    authDomain: "iraasoft-solution-lms.firebaseapp.com",
+    projectId: "iraasoft-solution-lms",
+    storageBucket: "iraasoft-solution-lms.firebasestorage.app",
+    messagingSenderId: "994818264581",
+    appId: "1:994818264581:web:25736520aaf45f9364166c",
+    measurementId: "G-YK8CVR88ZE"
 };
 
-// Initialize Firebase
+// Initialize Firebase (using compat SDK loaded via CDN in HTML files)
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore(app);
