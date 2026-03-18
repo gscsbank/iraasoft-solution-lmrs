@@ -102,8 +102,10 @@ if (!isOnLoginPage) {
 
 // Global Logout Handler
 window.handleLogout = function () {
+    try { firebase.auth().signOut(); } catch(e) {}
     sessionStorage.removeItem('lrms_auth');
     sessionStorage.removeItem('lrms_user');
+    sessionStorage.removeItem('lrms_role');
     window.location.replace('login.html');
 };
 
