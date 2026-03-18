@@ -79,7 +79,7 @@ body {
     overflow: hidden;
 }
 
-/* decorative circles in sidebar */
+/* decorative circle in sidebar (top only) */
 .sidebar::before {
     content: '';
     position: absolute;
@@ -89,18 +89,6 @@ body {
     height: 220px;
     border-radius: 50%;
     background: rgba(167, 139, 250, 0.12);
-    pointer-events: none;
-}
-
-.sidebar::after {
-    content: '';
-    position: absolute;
-    bottom: 60px;
-    left: -80px;
-    width: 260px;
-    height: 260px;
-    border-radius: 50%;
-    background: rgba(167, 139, 250, 0.08);
     pointer-events: none;
 }
 
