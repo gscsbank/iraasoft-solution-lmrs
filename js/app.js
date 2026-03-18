@@ -694,139 +694,37 @@ async function deleteDocument(id) {
     }
 }
 
-// ---- Page Initialization Registry ----
-function initPageComponents() {
-    // 1. Initialize Lucide Icons
-    if (window.lucide) {
-        lucide.createIcons();
-    }
-
-    // 2. Admin Menu Visibility
+// Show Admin Menu Links and Settings if authorized
+document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('lrms_role') === 'admin') {
-        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
     }
 
-    // 3. Initialize Dashboard Charts
+    // Initialize charts if on dashboard
     if (document.getElementById('statusChart')) {
-        setTimeout(initDashboardCharts, 400);
+        setTimeout(initDashboardCharts, 500);
     }
 
-    // 4. Update Dynamic Titles (if any)
+    // Check for today's follow-ups
+    // checkTodayFollowUps removed
+
     const savedSettingsStr = localStorage.getItem('lrms_settings');
     if (savedSettingsStr) {
         const s = JSON.parse(savedSettingsStr);
         if (s.bankName) {
-            document.querySelectorAll('.bank-name-label').forEach(el => el.innerText = s.bankName + ' v1.0');
+            const v = document.getElementById('sidebarVersion');
+            if (v) v.innerText = s.bankName + ' v1.0';
+
             const pb = document.getElementById('printBankName');
             if (pb) pb.innerText = s.bankName.toUpperCase();
         }
-    }
-
-    // 5. Run local page init (from the newly fetched content)
-    if (typeof window.initPage === 'function') {
-        try { window.initPage(); } catch(e) { console.error("initPage Error:", e); }
-    }
-
-    // 6. Setup Side Panel SPA Interceptor
-    setupSPALinks();
-    updateActiveNavState(window.location.href);
-}
-
-// Intercept clicks on links for SPA feel
-function setupSPALinks() {
-    document.querySelectorAll('.nav-link, .spa-link').forEach(link => {
-        link.onclick = async (e) => {
-            const href = link.getAttribute('href');
-            if (!href || href.startsWith('http') || href.startsWith('#')) return;
-            
-            e.preventDefault();
-            await navigateToPage(href);
-        };
-    });
-}
-
-// Navigation Handler
-async function navigateToPage(url, pushState = true) {
-    const mainContent = document.querySelector('.main-content');
-    if (!mainContent) return;
-
-    try {
-        // Find existing nav layout (sidebar/header) to keep them fixed
-        const response = await fetch(url);
-        const html = await response.text();
-        const parser = new DOMParser();
-        const newDoc = parser.parseFromString(html, 'text/html');
-
-        // Extract the new main area content
-        const newMainContent = newDoc.querySelector('.main-content');
-        if (!newMainContent) {
-            window.location.href = url; // Fallback
-            return;
+        if (s.systemName) {
+            const ps = document.getElementById('printSystemName');
+            if (ps) ps.innerText = s.systemName;
         }
-
-        // 1. Fade out current content area only
-        const contentArea = mainContent.querySelector('.content-area');
-        if (contentArea) contentArea.style.opacity = '0';
-
-        // 2. Update the main-content (header + content area)
-        mainContent.innerHTML = newMainContent.innerHTML;
-
-        // 3. Re-execute scripts from the fetched content
-        const scripts = newMainContent.querySelectorAll('script');
-        scripts.forEach(script => {
-            const newScript = document.createElement('script');
-            if (script.src) {
-                // If it's app.js or similar, skip to avoid double-loading
-                if (script.src.includes('app.js') || script.src.includes('firebase')) return;
-                newScript.src = script.src;
-            } else {
-                newScript.textContent = script.textContent;
-            }
-            document.body.appendChild(newScript);
-        });
-
-        // 4. Update URL and active state
-        if (pushState) window.history.pushState({ url }, '', url);
-        updateActiveNavState(url);
-
-        // 5. Re-init common logic
-        initPageComponents();
-        
-    } catch (err) {
-        console.error("SPA Nav Error:", err);
-        window.location.href = url; // Hard fallback
     }
-}
-
-function updateActiveNavState(url) {
-    const pathParts = url.split('/');
-    const filename = pathParts[pathParts.length - 1] || 'index.html';
-    
-    document.querySelectorAll('.nav-link').forEach(link => {
-        const linkHref = link.getAttribute('href');
-        if (linkHref === filename) {
-            link.classList.add('active');
-        } else {
-            link.classList.remove('active');
-        }
-    });
-
-    // Close mobile sidebar after navigation
-    document.querySelector('.sidebar')?.classList.remove('open');
-    document.querySelector('.sidebar-overlay')?.style.setProperty('display', 'none');
-}
-
-// Browser Back/Forward support
-window.onpopstate = (e) => {
-    if (e.state && e.state.url) {
-        navigateToPage(e.state.url, false);
-    } else {
-        window.location.reload();
-    }
-};
-
-// Initial Load
-document.addEventListener('DOMContentLoaded', initPageComponents);
+});
 
 // ---- Activity Logging System ----
 async function logActivity(action, details, type = 'info') {
