@@ -55,10 +55,10 @@
             <a href="recycle-bin.html" class="nav-link">
                 <i data-lucide="trash-2"></i> Recycle Bin
             </a>
-            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
                 <i data-lucide="users"></i> User Management
             </a>
-            <a href="settings.html" id="settingsMenuLink" class="nav-link hidden">
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
                 <i data-lucide="settings"></i> Settings
             </a>
         </nav>
@@ -103,7 +103,7 @@
     <script src="js/app.js?v=3.4"></script>
     <script src="js/app.js?v=3.4"></script>
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
+        window.initPage = () => {
             lucide.createIcons();
             if (sessionStorage.getItem('lrms_role') === 'admin') {
                 document.getElementById('adminMenuLink')?.classList.remove('hidden');
@@ -205,4 +205,6 @@
 </body>
 
 </html>
+
+
 

@@ -49,10 +49,10 @@
             <a href="recycle-bin.html" class="nav-link">
                 <i data-lucide="trash-2"></i> Recycle Bin
             </a>
-            <a href="admin.html" id="adminMenuLink" class="nav-link hidden">
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
                 <i data-lucide="users"></i> User Management
             </a>
-            <a href="settings.html" id="settingsMenuLink" class="nav-link active">
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden" class="nav-link active">
                 <i data-lucide="settings"></i> Settings
             </a>
         </nav>
@@ -146,7 +146,7 @@
 
     <script src="js/app.js?v=3.4"></script>
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
+        window.initPage = () => {
             if (sessionStorage.getItem('lrms_role') !== 'admin') {
                 alert("Unauthorized.");
                 window.location.replace('index.html');
@@ -173,9 +173,11 @@
             const t = document.getElementById('toast');
             t.classList.remove('hidden');
             setTimeout(() => t.classList.add('hidden'), 3000);
-        });
+        }; window.initPage();
     </script>
 </body>
 
 </html>
+
+
 
