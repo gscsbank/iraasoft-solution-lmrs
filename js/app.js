@@ -741,23 +741,15 @@ async function logActivity(action, details, type = 'info') {
 
 async function getActivityLogs(limitCount = 100) {
     try {
-        const snapshot = await db.collection("activity_logs")
-            .orderBy('timestamp', 'desc')
-            .limit(limitCount)
-            .get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Fetch all docs without orderBy to avoid Firestore index requirement
+        const snapshot = await db.collection("activity_logs").get();
+        let logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort newest first locally
+        logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return logs.slice(0, limitCount);
     } catch (error) {
-        console.warn("Initial log query failed (likely missing index). Attempting fallback...", error);
-        // Fallback: Fetch without orderBy or limit, then sort and slice locally
-        try {
-            const snapshot = await db.collection("activity_logs").get();
-            let logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            return logs.slice(0, limitCount);
-        } catch (fallbackError) {
-            console.error("Fallback error fetching logs:", fallbackError);
-            return [];
-        }
+        console.error("Error fetching activity logs:", error);
+        return [];
     }
 }
 
