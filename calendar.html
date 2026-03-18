@@ -189,95 +189,95 @@
                 </div>
             </div>
         </div>
+        <script>
+            let currentYear, currentMonth;
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+            window.initPage = () => {
+                initCalendar();
+            };
+
+            async function initCalendar() {
+                const now = new Date();
+                currentYear = now.getFullYear();
+                currentMonth = now.getMonth();
+                renderCalendar();
+                lucide.createIcons();
+            }
+
+            async function renderCalendar() {
+                const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+                const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                const today = new Date();
+
+                document.getElementById('currentMonthYear').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
+                const daysContainer = document.getElementById('calendarDays');
+                daysContainer.innerHTML = '';
+
+                // Get all actions for this month
+                const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+                const endStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
+
+                const snapshot = await db.collection("actions")
+                    .where('followUpDate', '>=', startStr)
+                    .where('followUpDate', '<=', endStr)
+                    .get();
+                const actions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Padding days
+                for (let i = 0; i < firstDay; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'calendar-day bg-gray-50';
+                    daysContainer.appendChild(div);
+                }
+
+                // Month days
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const div = document.createElement('div');
+                    div.className = 'calendar-day';
+                    if (today.getFullYear() === currentYear && today.getMonth() === currentMonth && today.getDate() === d) {
+                        div.classList.add('today');
+                    }
+
+                    div.innerHTML = `<div class="day-number font-bold text-sm mb-2">${d}</div>`;
+
+                    const dailyActions = actions.filter(a => a.followUpDate === dateStr);
+                    for (const action of dailyActions) {
+                        const customer = await getCustomerByAccountNo(action.customerAccountNo);
+                        const name = customer ? customer.name : 'Unknown';
+                        const typeClass = action.actionType.includes('Legal') ? 'event-legal' : (action.actionType.includes('High Risk') ? 'event-risk' : 'event-normal');
+
+                        const span = document.createElement('span');
+                        span.className = `event-badge ${typeClass}`;
+                        span.innerText = name;
+                        span.title = `${name}: ${action.actionType}`;
+                        span.onclick = () => window.location.href = `customer-detail.html?accountNo=${action.customerAccountNo}`;
+                        div.appendChild(span);
+                    }
+
+                    daysContainer.appendChild(div);
+                }
+            }
+
+            function changeMonth(dir) {
+                currentMonth += dir;
+                if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+                if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+                renderCalendar();
+            }
+
+            function goToToday() {
+                const now = new Date();
+                currentYear = now.getFullYear();
+                currentMonth = now.getMonth();
+                renderCalendar();
+            }
+        </script>
     </main>
 
     <script src="js/app.js?v=3.5"></script>
-    <script>
-        let currentYear, currentMonth;
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-        window.initPage = () => {
-            initCalendar();
-        };
-
-        async function initCalendar() {
-            const now = new Date();
-            currentYear = now.getFullYear();
-            currentMonth = now.getMonth();
-            renderCalendar();
-            lucide.createIcons();
-        }
-
-        async function renderCalendar() {
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const today = new Date();
-
-            document.getElementById('currentMonthYear').innerText = `${monthNames[currentMonth]} ${currentYear}`;
-
-            const daysContainer = document.getElementById('calendarDays');
-            daysContainer.innerHTML = '';
-
-            // Get all actions for this month
-            const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
-            const endStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${daysInMonth}`;
-
-            const snapshot = await db.collection("actions")
-                .where('followUpDate', '>=', startStr)
-                .where('followUpDate', '<=', endStr)
-                .get();
-            const actions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            // Padding days
-            for (let i = 0; i < firstDay; i++) {
-                const div = document.createElement('div');
-                div.className = 'calendar-day bg-gray-50';
-                daysContainer.appendChild(div);
-            }
-
-            // Month days
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const div = document.createElement('div');
-                div.className = 'calendar-day';
-                if (today.getFullYear() === currentYear && today.getMonth() === currentMonth && today.getDate() === d) {
-                    div.classList.add('today');
-                }
-
-                div.innerHTML = `<div class="day-number font-bold text-sm mb-2">${d}</div>`;
-
-                const dailyActions = actions.filter(a => a.followUpDate === dateStr);
-                for (const action of dailyActions) {
-                    const customer = await getCustomerByAccountNo(action.customerAccountNo);
-                    const name = customer ? customer.name : 'Unknown';
-                    const typeClass = action.actionType.includes('Legal') ? 'event-legal' : (action.actionType.includes('High Risk') ? 'event-risk' : 'event-normal');
-
-                    const span = document.createElement('span');
-                    span.className = `event-badge ${typeClass}`;
-                    span.innerText = name;
-                    span.title = `${name}: ${action.actionType}`;
-                    span.onclick = () => window.location.href = `customer-detail.html?accountNo=${action.customerAccountNo}`;
-                    div.appendChild(span);
-                }
-
-                daysContainer.appendChild(div);
-            }
-        }
-
-        function changeMonth(dir) {
-            currentMonth += dir;
-            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-            renderCalendar();
-        }
-
-        function goToToday() {
-            const now = new Date();
-            currentYear = now.getFullYear();
-            currentMonth = now.getMonth();
-            renderCalendar();
-        }
-    </script>
 </body>
 
 </html>

@@ -155,150 +155,162 @@
                 </div>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                window.initPage = () => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    loadDeletedCustomers();
+                    loadDeletedActions();
+                };
+
+                window.switchTab = function(tab) {
+                    const btnCustomers = document.getElementById('tabCustomers');
+                    const btnActions = document.getElementById('tabActions');
+                    const contCustomers = document.getElementById('customersContainer');
+                    const contActions = document.getElementById('actionsContainer');
+
+                    if (tab === 'customers') {
+                        if (btnCustomers) btnCustomers.className = 'btn btn-primary';
+                        if (btnActions) btnActions.className = 'btn btn-ghost';
+                        if (contCustomers) contCustomers.style.display = 'block';
+                        if (contActions) contActions.style.display = 'none';
+                        loadDeletedCustomers();
+                    } else {
+                        if (btnActions) btnActions.className = 'btn btn-primary';
+                        if (btnCustomers) btnCustomers.className = 'btn btn-ghost';
+                        if (contActions) contActions.style.display = 'block';
+                        if (contCustomers) contCustomers.style.display = 'none';
+                        loadDeletedActions();
+                    }
+                }
+
+                window.loadDeletedCustomers = async function() {
+                    const tbody = document.getElementById('deletedCustomersBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">Loading...</td></tr>';
+
+                    const customers = await getDeletedCustomers();
+
+                    if (customers.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">No deleted customers found.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = '';
+                    customers.forEach(c => {
+                        const deletedDate = c.deletedAt ? new Date(c.deletedAt).toLocaleString() : 'Unknown';
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight:700;color:#1e293b">\${c.accountNo}</td>
+                            <td style="font-weight:600">\${c.name}</td>
+                            <td><span class="badge \${c.status === 'Loan Closed' ? 'badge-closed' : 'badge-normal'}">\${c.status || 'N/A'}</span></td>
+                            <td style="color:#6b7280;font-size:0.85rem">\${deletedDate}</td>
+                            <td style="text-align:right">
+                                <div style="display:flex;gap:8px;justify-content:flex-end">
+                                    <button onclick="handleRestoreCustomer('\${c.id}')" class="btn btn-slate" style="padding:4px 8px;font-size:0.8rem" title="Restore">
+                                        <i data-lucide="rotate-ccw" style="width:14px;height:14px"></i> Restore
+                                    </button>
+                                    <button onclick="handlePermanentDeleteCustomer('\${c.id}', '\${c.accountNo}')" class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem;background:#ef4444;color:white" title="Delete Permanently">
+                                        <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                window.loadDeletedActions = async function() {
+                    const tbody = document.getElementById('deletedActionsBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">Loading...</td></tr>';
+
+                    const actions = await getDeletedActions();
+
+                    if (actions.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">No deleted actions found.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = '';
+                    actions.forEach(a => {
+                        const deletedDate = a.deletedAt ? new Date(a.deletedAt).toLocaleString() : 'Unknown';
+                        const actionDate = new Date(a.date).toLocaleDateString();
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight:700;color:#1e293b">\${a.customerAccountNo}</td>
+                            <td style="font-weight:600">\${a.actionType}</td>
+                            <td style="color:#6b7280">\${actionDate}</td>
+                            <td style="color:#6b7280;font-size:0.85rem">\${deletedDate}</td>
+                            <td style="text-align:right">
+                                <div style="display:flex;gap:8px;justify-content:flex-end">
+                                    <button onclick="handleRestoreAction('\${a.id}')" class="btn btn-slate" style="padding:4px 8px;font-size:0.8rem" title="Restore">
+                                        <i data-lucide="rotate-ccw" style="width:14px;height:14px"></i> Restore
+                                    </button>
+                                    <button onclick="handlePermanentDeleteAction('\${a.id}')" class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem;background:#ef4444;color:white" title="Delete Permanently">
+                                        <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                window.handleRestoreCustomer = async function(docId) {
+                    if (confirm("Restore this customer?")) {
+                        if (await restoreCustomer(docId)) {
+                            loadDeletedCustomers();
+                        } else {
+                            alert("Failed to restore customer.");
+                        }
+                    }
+                }
+
+                window.handlePermanentDeleteCustomer = async function(docId, accountNo) {
+                    if (confirm("WARNING: This will permanently delete the customer, all their actions, and documents. This cannot be undone. Are you sure?")) {
+                        if (await permanentlyDeleteCustomer(docId, accountNo)) {
+                            loadDeletedCustomers();
+                        } else {
+                            alert("Failed to delete customer.");
+                        }
+                    }
+                }
+
+                window.handleRestoreAction = async function(docId) {
+                    if (confirm("Restore this action?")) {
+                        if (await restoreAction(docId)) {
+                            loadDeletedActions();
+                        } else {
+                            alert("Failed to restore action.");
+                        }
+                    }
+                }
+
+                window.handlePermanentDeleteAction = async function(docId) {
+                    if (confirm("WARNING: This will permanently delete this action. This cannot be undone. Are you sure?")) {
+                        if (await permanentlyDeleteAction(docId)) {
+                            loadDeletedActions();
+                        } else {
+                            alert("Failed to delete action.");
+                        }
+                    }
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        window.initPage = () => {
-            lucide.createIcons();
-            loadDeletedCustomers();
-            loadDeletedActions();
-        };
 
-        function switchTab(tab) {
-            const btnCustomers = document.getElementById('tabCustomers');
-            const btnActions = document.getElementById('tabActions');
-            const contCustomers = document.getElementById('customersContainer');
-            const contActions = document.getElementById('actionsContainer');
-
-            if (tab === 'customers') {
-                btnCustomers.className = 'btn btn-primary';
-                btnActions.className = 'btn btn-ghost';
-                contCustomers.style.display = 'block';
-                contActions.style.display = 'none';
-                loadDeletedCustomers();
-            } else {
-                btnActions.className = 'btn btn-primary';
-                btnCustomers.className = 'btn btn-ghost';
-                contActions.style.display = 'block';
-                contCustomers.style.display = 'none';
-                loadDeletedActions();
-            }
-        }
-
-        async function loadDeletedCustomers() {
-            const tbody = document.getElementById('deletedCustomersBody');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">Loading...</td></tr>';
-
-            const customers = await getDeletedCustomers();
-
-            if (customers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">No deleted customers found.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            customers.forEach(c => {
-                const deletedDate = c.deletedAt ? new Date(c.deletedAt).toLocaleString() : 'Unknown';
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:700;color:#1e293b">${c.accountNo}</td>
-                    <td style="font-weight:600">${c.name}</td>
-                    <td><span class="badge ${c.status === 'Loan Closed' ? 'badge-closed' : 'badge-normal'}">${c.status || 'N/A'}</span></td>
-                    <td style="color:#6b7280;font-size:0.85rem">${deletedDate}</td>
-                    <td style="text-align:right">
-                        <div style="display:flex;gap:8px;justify-content:flex-end">
-                            <button onclick="handleRestoreCustomer('${c.id}')" class="btn btn-slate" style="padding:4px 8px;font-size:0.8rem" title="Restore">
-                                <i data-lucide="rotate-ccw" style="width:14px;height:14px"></i> Restore
-                            </button>
-                            <button onclick="handlePermanentDeleteCustomer('${c.id}', '${c.accountNo}')" class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem;background:#ef4444;color:white" title="Delete Permanently">
-                                <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-
-        async function loadDeletedActions() {
-            const tbody = document.getElementById('deletedActionsBody');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">Loading...</td></tr>';
-
-            const actions = await getDeletedActions();
-
-            if (actions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px;">No deleted actions found.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = '';
-            actions.forEach(a => {
-                const deletedDate = a.deletedAt ? new Date(a.deletedAt).toLocaleString() : 'Unknown';
-                const actionDate = new Date(a.date).toLocaleDateString();
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:700;color:#1e293b">${a.customerAccountNo}</td>
-                    <td style="font-weight:600">${a.actionType}</td>
-                    <td style="color:#6b7280">${actionDate}</td>
-                    <td style="color:#6b7280;font-size:0.85rem">${deletedDate}</td>
-                    <td style="text-align:right">
-                        <div style="display:flex;gap:8px;justify-content:flex-end">
-                            <button onclick="handleRestoreAction('${a.id}')" class="btn btn-slate" style="padding:4px 8px;font-size:0.8rem" title="Restore">
-                                <i data-lucide="rotate-ccw" style="width:14px;height:14px"></i> Restore
-                            </button>
-                            <button onclick="handlePermanentDeleteAction('${a.id}')" class="btn btn-danger" style="padding:4px 8px;font-size:0.8rem;background:#ef4444;color:white" title="Delete Permanently">
-                                <i data-lucide="trash-2" style="width:14px;height:14px"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-
-        async function handleRestoreCustomer(docId) {
-            if (confirm("Restore this customer?")) {
-                if (await restoreCustomer(docId)) {
-                    loadDeletedCustomers();
-                } else {
-                    alert("Failed to restore customer.");
-                }
-            }
-        }
-
-        async function handlePermanentDeleteCustomer(docId, accountNo) {
-            if (confirm("WARNING: This will permanently delete the customer, all their actions, and documents. This cannot be undone. Are you sure?")) {
-                if (await permanentlyDeleteCustomer(docId, accountNo)) {
-                    loadDeletedCustomers();
-                } else {
-                    alert("Failed to delete customer.");
-                }
-            }
-        }
-
-        async function handleRestoreAction(docId) {
-            if (confirm("Restore this action?")) {
-                if (await restoreAction(docId)) {
-                    loadDeletedActions();
-                } else {
-                    alert("Failed to restore action.");
-                }
-            }
-        }
-
-        async function handlePermanentDeleteAction(docId) {
-            if (confirm("WARNING: This will permanently delete this action. This cannot be undone. Are you sure?")) {
-                if (await permanentlyDeleteAction(docId)) {
-                    loadDeletedActions();
-                } else {
-                    alert("Failed to delete action.");
-                }
-            }
-        }
-    </script>
 </body>
 
 </html>

@@ -174,85 +174,109 @@
                 </div>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                let selectedRecipients = [];
+
+                window.initPage = async function() {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    const stored = localStorage.getItem('selected_bulk_accounts');
+                    selectedRecipients = []; // Reset locally
+                    if (stored) {
+                        try {
+                            const accounts = JSON.parse(stored);
+                            for (const acc of accounts) {
+                                const customer = await getCustomerByAccountNo(acc);
+                                if (customer) selectedRecipients.push(customer);
+                            }
+                        } catch (e) {
+                            console.error("Error parsing bulk accounts", e);
+                        }
+                        renderRecipients();
+                    }
+                }
+
+                window.renderRecipients = function() {
+                    const list = document.getElementById('recipientList');
+                    const count = document.getElementById('recipientCount');
+                    if (!count || !list) return;
+                    
+                    count.innerText = `${selectedRecipients.length} Recipient(s) Selected`;
+
+                    if (selectedRecipients.length === 0) {
+                        list.innerHTML = '<div class="text-gray-400 italic">No recipients selected. Go back to Dashboard.</div>';
+                        return;
+                    }
+
+                    list.innerHTML = selectedRecipients.map(r => `
+                        <div class="recipient-tag">
+                            <i data-lucide="user" style="width:12px;height:12px"></i>
+                            \${r.name} (\${r.accountNo})
+                        </div>
+                    `).join('');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                window.sendBulk = async function(type) {
+                    const cm = document.getElementById('customMessage');
+                    if (!cm) return;
+                    const message = cm.value.trim();
+                    if (!message) { alert("Please enter a message!"); return; }
+                    if (selectedRecipients.length === 0) { alert("No recipients selected!"); return; }
+
+                    if (!confirm(`Are you sure you want to send this message to \${selectedRecipients.length} customers via \${type.toUpperCase()}?`)) return;
+
+                    const sl = document.getElementById('statusLog');
+                    const log = document.getElementById('logContent');
+                    if (sl) sl.classList.remove('hidden');
+                    if (log) log.innerHTML = '';
+
+                    for (const c of selectedRecipients) {
+                        if (!c.phone) {
+                            if (log) log.innerHTML += `<div class="text-red-500">Skipped \${c.name}: No phone number</div>`;
+                            continue;
+                        }
+
+                        const cleanPhone = c.phone.replace(/\D/g, '');
+                        const encodedMsg = encodeURIComponent(message);
+
+                        if (log) log.innerHTML += `<div class="text-violet-600">Sending to \${c.name}...</div>`;
+
+                        if (type === 'whatsapp') {
+                            window.open(`https://wa.me/\${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=\${encodedMsg}`, '_blank');
+                        } else {
+                            const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
+                            window.open(`sms:\${cleanPhone}\${separator}body=\${encodedMsg}`, '_blank');
+                        }
+
+                        // Small delay to prevent browser blocking
+                        await new Promise(r => setTimeout(r, 800));
+                    }
+
+                    if (log) log.innerHTML += `<div class="font-bold text-green-600 mt-2">Process completed!</div>`;
+                }
+
+                const sendWhatsApp = document.getElementById('sendWhatsApp');
+                if (sendWhatsApp) {
+                    sendWhatsApp.onclick = () => sendBulk('whatsapp');
+                }
+                const sendSMS = document.getElementById('sendSMS');
+                if (sendSMS) {
+                    sendSMS.onclick = () => sendBulk('sms');
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        let selectedRecipients = [];
 
-        async function init() {
-            lucide.createIcons();
-            const stored = localStorage.getItem('selected_bulk_accounts');
-            if (stored) {
-                const accounts = JSON.parse(stored);
-                for (const acc of accounts) {
-                    const customer = await getCustomerByAccountNo(acc);
-                    if (customer) selectedRecipients.push(customer);
-                }
-                renderRecipients();
-            }
-        }
-
-        function renderRecipients() {
-            const list = document.getElementById('recipientList');
-            const count = document.getElementById('recipientCount');
-            count.innerText = `${selectedRecipients.length} Recipient(s) Selected`;
-
-            if (selectedRecipients.length === 0) {
-                list.innerHTML = '<div class="text-gray-400 italic">No recipients selected. Go back to Dashboard.</div>';
-                return;
-            }
-
-            list.innerHTML = selectedRecipients.map(r => `
-                <div class="recipient-tag">
-                    <i data-lucide="user" style="width:12px;height:12px"></i>
-                    ${r.name} (${r.accountNo})
-                </div>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        async function sendBulk(type) {
-            const message = document.getElementById('customMessage').value.trim();
-            if (!message) { alert("Please enter a message!"); return; }
-            if (selectedRecipients.length === 0) { alert("No recipients selected!"); return; }
-
-            if (!confirm(`Are you sure you want to send this message to ${selectedRecipients.length} customers via ${type.toUpperCase()}?`)) return;
-
-            document.getElementById('statusLog').classList.remove('hidden');
-            const log = document.getElementById('logContent');
-            log.innerHTML = '';
-
-            for (const c of selectedRecipients) {
-                if (!c.phone) {
-                    log.innerHTML += `<div class="text-red-500">Skipped ${c.name}: No phone number</div>`;
-                    continue;
-                }
-
-                const cleanPhone = c.phone.replace(/\D/g, '');
-                const encodedMsg = encodeURIComponent(message);
-
-                log.innerHTML += `<div class="text-violet-600">Sending to ${c.name}...</div>`;
-
-                if (type === 'whatsapp') {
-                    window.open(`https://wa.me/${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=${encodedMsg}`, '_blank');
-                } else {
-                    const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
-                    window.open(`sms:${cleanPhone}${separator}body=${encodedMsg}`, '_blank');
-                }
-
-                // Small delay to prevent browser blocking
-                await new Promise(r => setTimeout(r, 800));
-            }
-
-            log.innerHTML += `<div class="font-bold text-green-600 mt-2">Process completed!</div>`;
-        }
-
-        document.getElementById('sendWhatsApp').addEventListener('click', () => sendBulk('whatsapp'));
-        document.getElementById('sendSMS').addEventListener('click', () => sendBulk('sms'));
-
-        init();
-    </script>
 </body>
 
 </html>

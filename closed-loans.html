@@ -139,79 +139,100 @@
             </div>
 
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                let closedLoans = [];
+
+                window.initPage = () => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    if (sessionStorage.getItem('lrms_role') === 'admin') {
+                        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+                    }
+                    setTimeout(fetchClosedLoans, 150);
+                };
+
+                const si = document.getElementById('searchInput');
+                if (si) {
+                    si.addEventListener('input', renderTable);
+                }
+
+                window.fetchClosedLoans = async function() {
+                    try {
+                        const all = await getAllCustomers();
+                        closedLoans = all.filter(c => c.status === 'Loan Closed');
+                        closedLoans.sort((a, b) => new Date(b.statusDate || 0) - new Date(a.statusDate || 0));
+                        const cc = document.getElementById('closedCount');
+                        if (cc) cc.innerText = closedLoans.length;
+                        renderTable();
+                    } catch (err) { console.error(err); }
+                }
+
+                window.renderTable = function() {
+                    const si = document.getElementById('searchInput');
+                    if (!si) return;
+                    const query = si.value.toLowerCase();
+                    const tbody = document.getElementById('closedTableBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+
+                    let filtered = closedLoans;
+                    if (query) {
+                        filtered = closedLoans.filter(c =>
+                            c.name.toLowerCase().includes(query) ||
+                            c.accountNo.toLowerCase().includes(query)
+                        );
+                    }
+
+                    if (filtered.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:120px;color:#9ca3af;font-style:italic">No records found.</td></tr>`;
+                        return;
+                    }
+
+                    filtered.forEach(c => {
+                        const amt = 'LKR ' + (c.loanAmount ? c.loanAmount.toLocaleString() : '0');
+                        const closeDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                        const tr = document.createElement('tr');
+                        tr.style.cursor = 'pointer';
+                        tr.onclick = () => {
+                            if (typeof window.navigate === 'function') window.navigate(`customer-detail.html?accountNo=\${c.accountNo}`);
+                            else window.location.href = `customer-detail.html?accountNo=\${c.accountNo}`;
+                        };
+                        tr.innerHTML = `
+                            <td style="font-weight:700;color:var(--text-primary)">\${c.accountNo}</td>
+                            <td style="font-weight:800;color:var(--text-primary)">\${c.name}</td>
+                            <td>
+                                <div style="font-weight:600;color:var(--text-primary)">\${amt}</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted)">\${c.category || 'N/A'}</div>
+                            </td>
+                            <td>
+                                <span class="badge badge-closed" style="background:#f0fdf4;color:#15803d;padding:4px 10px;font-size:0.7rem">
+                                    \${closeDate}
+                                </span>
+                            </td>
+                            <td style="text-align:right">
+                                <button class="btn btn-ghost" style="color:var(--violet-600);background:var(--violet-50);padding:8px">
+                                    <i data-lucide="file-text"></i>
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        let closedLoans = [];
 
-        window.initPage = () => {
-            lucide.createIcons();
-            if (sessionStorage.getItem('lrms_role') === 'admin') {
-                document.getElementById('adminMenuLink')?.classList.remove('hidden');
-                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
-            }
-            setTimeout(fetchClosedLoans, 150);
-        };
-
-        document.getElementById('searchInput').addEventListener('input', renderTable);
-
-        async function fetchClosedLoans() {
-            try {
-                const all = await getAllCustomers();
-                closedLoans = all.filter(c => c.status === 'Loan Closed');
-                closedLoans.sort((a, b) => new Date(b.statusDate || 0) - new Date(a.statusDate || 0));
-                document.getElementById('closedCount').innerText = closedLoans.length;
-                renderTable();
-            } catch (err) { console.error(err); }
-        }
-
-        function renderTable() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const tbody = document.getElementById('closedTableBody');
-            tbody.innerHTML = '';
-
-            let filtered = closedLoans;
-            if (query) {
-                filtered = closedLoans.filter(c =>
-                    c.name.toLowerCase().includes(query) ||
-                    c.accountNo.toLowerCase().includes(query)
-                );
-            }
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:120px;color:#9ca3af;font-style:italic">No records found.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach(c => {
-                const amt = 'LKR ' + (c.loanAmount ? c.loanAmount.toLocaleString() : '0');
-                const closeDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
-                const tr = document.createElement('tr');
-                tr.onclick = () => window.location.href = `customer-detail.html?accountNo=${c.accountNo}`;
-                tr.innerHTML = `
-                    <td style="font-weight:700;color:var(--text-primary)">${c.accountNo}</td>
-                    <td style="font-weight:800;color:var(--text-primary)">${c.name}</td>
-                    <td>
-                        <div style="font-weight:600;color:var(--text-primary)">${amt}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted)">${c.category || 'N/A'}</div>
-                    </td>
-                    <td>
-                        <span class="badge badge-closed" style="background:#f0fdf4;color:#15803d;padding:4px 10px;font-size:0.7rem">
-                            ${closeDate}
-                        </span>
-                    </td>
-                    <td style="text-align:right">
-                        <button class="btn btn-ghost" style="color:var(--violet-600);background:var(--violet-50);padding:8px">
-                            <i data-lucide="file-text"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-    </script>
 </body>
 
 </html>

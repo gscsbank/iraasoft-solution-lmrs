@@ -28,6 +28,12 @@
             <a href="index.html" class="nav-link">
                 <i data-lucide="layout-dashboard"></i> Dashboard
             </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
+            </a>
             <a href="reminders.html" class="nav-link">
                 <i data-lucide="bell"></i> Reminders
             </a>
@@ -136,7 +142,58 @@
                 </form>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                window.initPage = () => {
+                    if (sessionStorage.getItem('lrms_role') !== 'admin') {
+                        alert("Unauthorized.");
+                        if (typeof window.navigate === 'function') window.navigate('index.html');
+                        else window.location.replace('index.html');
+                        return;
+                    }
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+                    const s = JSON.parse(localStorage.getItem('lrms_settings') || '{}');
+                    const bn = document.getElementById('bankName');
+                    const brn = document.getElementById('branchName');
+                    const sn = document.getElementById('systemName');
+                    if (bn) bn.value = s.bankName || 'GALAPITIYAGAMA SANASA BANK';
+                    if (brn) brn.value = s.branchName || '';
+                    if (sn) sn.value = s.systemName || 'Loan Recovery Management System';
+                };
+
+                const sf = document.getElementById('settingsForm');
+                if (sf) {
+                    sf.onsubmit = (e) => {
+                        e.preventDefault();
+                        const config = {
+                            bankName: document.getElementById('bankName').value,
+                            branchName: document.getElementById('branchName').value,
+                            systemName: document.getElementById('systemName').value
+                        };
+                        localStorage.setItem('lrms_settings', JSON.stringify(config));
+                        const sv = document.getElementById('sidebarVersion');
+                        if (config.bankName && sv) sv.innerText = config.bankName + ' v1.0';
+
+                        const t = document.getElementById('toast');
+                        if (t) {
+                            t.classList.remove('hidden');
+                            setTimeout(() => t.classList.add('hidden'), 3000);
+                        }
+                    };
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
+
 
     <!-- Success Toast -->
     <div id="toast" class="hidden"
@@ -159,37 +216,6 @@
         }
     </style>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        window.initPage = () => {
-            if (sessionStorage.getItem('lrms_role') !== 'admin') {
-                alert("Unauthorized.");
-                window.location.replace('index.html');
-                return;
-            }
-            lucide.createIcons();
-
-            const s = JSON.parse(localStorage.getItem('lrms_settings') || '{}');
-            document.getElementById('bankName').value = s.bankName || 'GALAPITIYAGAMA SANASA BANK';
-            document.getElementById('branchName').value = s.branchName || '';
-            document.getElementById('systemName').value = s.systemName || 'Loan Recovery Management System';
-        };
-
-        document.getElementById('settingsForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const config = {
-                bankName: document.getElementById('bankName').value,
-                branchName: document.getElementById('branchName').value,
-                systemName: document.getElementById('systemName').value
-            };
-            localStorage.setItem('lrms_settings', JSON.stringify(config));
-            if (config.bankName) document.getElementById('sidebarVersion').innerText = config.bankName + ' v1.0';
-
-            const t = document.getElementById('toast');
-            t.classList.remove('hidden');
-            setTimeout(() => t.classList.add('hidden'), 3000);
-        });
-    </script>
 </body>
 
 </html>

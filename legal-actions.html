@@ -281,97 +281,118 @@
             </div>
 
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                let legalCustomers = [];
+
+                window.initPage = () => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    const printDateElem = document.getElementById('printDate');
+                    if (printDateElem) {
+                        printDateElem.innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+                    }
+                    if (sessionStorage.getItem('lrms_role') === 'admin') {
+                        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+                    }
+                    setTimeout(fetchLegalData, 150);
+                };
+
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('input', loadLegalData);
+                }
+
+                window.fetchLegalData = async function() {
+                    try {
+                        const allCust = await getAllCustomers();
+                        legalCustomers = allCust.filter(c => c.status && c.status.includes('Legal Action'));
+                        loadLegalData();
+                    } catch (err) { console.error(err); }
+                }
+
+                window.loadLegalData = function() {
+                    const lFilter = document.getElementById('legalFilter');
+                    const sInput = document.getElementById('searchInput');
+                    if (!lFilter || !sInput) return;
+
+                    const filterVal = lFilter.value;
+                    const query = sInput.value.toLowerCase();
+                    let displayList = legalCustomers;
+
+                    if (filterVal !== "All") displayList = displayList.filter(c => c.status === filterVal);
+                    if (query) {
+                        displayList = displayList.filter(c =>
+                            c.name.toLowerCase().includes(query) ||
+                            c.accountNo.toLowerCase().includes(query) ||
+                            (c.guarantor1 && c.guarantor1.toLowerCase().includes(query)) ||
+                            (c.guarantor2 && c.guarantor2.toLowerCase().includes(query))
+                        );
+                    }
+                    displayList.sort((a, b) => new Date(b.statusDate || 0) - new Date(a.statusDate || 0));
+                    renderTable(displayList);
+                }
+
+                window.renderTable = function(list) {
+                    const tbody = document.getElementById('legalTableBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+
+                    if (list.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:80px;color:#9ca3af;font-style:italic">No legal records found.</td></tr>`;
+                        return;
+                    }
+
+                    list.forEach((c, i) => {
+                        const guar = [c.guarantor1, c.guarantor2].filter(Boolean).join('<div style="height:1px;background:#f1f5f9;margin:4px 0"></div>');
+                        const sDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                        const amt = 'LKR ' + (c.loanAmount ? c.loanAmount.toLocaleString() : '0');
+
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="text-align:center;font-weight:700;color:var(--text-muted)">${i + 1}</td>
+                            <td>
+                                <div style="font-weight:800;color:var(--text-primary)">${c.name}</div>
+                                <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${c.accountNo}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight:800;color:var(--text-primary)">${amt}</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted)">${c.category || 'N/A'} &bull; ${c.interestRate}% Int.</div>
+                            </td>
+                            <td style="font-size:0.75rem;color:var(--text-secondary);max-width:240px">
+                                ${guar || 'None recorded'}
+                            </td>
+                            <td>
+                                <span class="badge badge-legal" style="background:#fff1f2;padding:4px 10px;font-size:0.65rem;letter-spacing:0.02em">
+                                    ${c.status.replace('Legal Action - ', '')}
+                                </span>
+                                <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:4px">
+                                    <i data-lucide="calendar" style="width:12px;height:12px"></i> Started: ${sDate}
+                                </div>
+                            </td>
+                            <td style="text-align:right" class="no-print">
+                                <button onclick="if(typeof window.navigate === 'function') window.navigate('customer-detail.html?accountNo=${c.accountNo}'); else window.location.href='customer-detail.html?accountNo=${c.accountNo}';" class="btn btn-ghost" style="padding:8px;color:var(--violet-600);background:var(--violet-50)">
+                                    <i data-lucide="arrow-right"></i>
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        let legalCustomers = [];
 
-        window.initPage = () => {
-            lucide.createIcons();
-            document.getElementById('printDate').innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-            if (sessionStorage.getItem('lrms_role') === 'admin') {
-                document.getElementById('adminMenuLink')?.classList.remove('hidden');
-                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
-            }
-            setTimeout(fetchLegalData, 150);
-        };
-
-        document.getElementById('searchInput').addEventListener('input', loadLegalData);
-
-        async function fetchLegalData() {
-            try {
-                const allCust = await getAllCustomers();
-                legalCustomers = allCust.filter(c => c.status && c.status.includes('Legal Action'));
-                loadLegalData();
-            } catch (err) { console.error(err); }
-        }
-
-        function loadLegalData() {
-            const filterVal = document.getElementById('legalFilter').value;
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            let displayList = legalCustomers;
-
-            if (filterVal !== "All") displayList = displayList.filter(c => c.status === filterVal);
-            if (query) {
-                displayList = displayList.filter(c =>
-                    c.name.toLowerCase().includes(query) ||
-                    c.accountNo.toLowerCase().includes(query) ||
-                    (c.guarantor1 && c.guarantor1.toLowerCase().includes(query)) ||
-                    (c.guarantor2 && c.guarantor2.toLowerCase().includes(query))
-                );
-            }
-            displayList.sort((a, b) => new Date(b.statusDate || 0) - new Date(a.statusDate || 0));
-            renderTable(displayList);
-        }
-
-        function renderTable(list) {
-            const tbody = document.getElementById('legalTableBody');
-            tbody.innerHTML = '';
-
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:80px;color:#9ca3af;font-style:italic">No legal records found.</td></tr>`;
-                return;
-            }
-
-            list.forEach((c, i) => {
-                const guar = [c.guarantor1, c.guarantor2].filter(Boolean).join('<div style="height:1px;background:#f1f5f9;margin:4px 0"></div>');
-                const sDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
-                const amt = 'LKR ' + (c.loanAmount ? c.loanAmount.toLocaleString() : '0');
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align:center;font-weight:700;color:var(--text-muted)">${i + 1}</td>
-                    <td>
-                        <div style="font-weight:800;color:var(--text-primary)">${c.name}</div>
-                        <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${c.accountNo}</div>
-                    </td>
-                    <td>
-                        <div style="font-weight:800;color:var(--text-primary)">${amt}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted)">${c.category || 'N/A'} &bull; ${c.interestRate}% Int.</div>
-                    </td>
-                    <td style="font-size:0.75rem;color:var(--text-secondary);max-width:240px">
-                        ${guar || 'None recorded'}
-                    </td>
-                    <td>
-                        <span class="badge badge-legal" style="background:#fff1f2;padding:4px 10px;font-size:0.65rem;letter-spacing:0.02em">
-                            ${c.status.replace('Legal Action - ', '')}
-                        </span>
-                        <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;gap:4px">
-                            <i data-lucide="calendar" style="width:12px;height:12px"></i> Started: ${sDate}
-                        </div>
-                    </td>
-                    <td style="text-align:right" class="no-print">
-                        <button onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'" class="btn btn-ghost" style="padding:8px;color:var(--violet-600);background:var(--violet-50)">
-                            <i data-lucide="arrow-right"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-    </script>
 </body>
 
 </html>

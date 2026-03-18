@@ -168,6 +168,7 @@ body > * {
     transition: none !important; /* Remove link animation */
     position: relative;
     overflow: hidden;
+    border-left: 3px solid transparent; /* Prevent shift on active */
 }
 
 .nav-link:hover {

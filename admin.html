@@ -27,6 +27,15 @@
         <nav class="sidebar-nav" id="mainNav">
             <a href="index.html" class="nav-link">
                 <i data-lucide="layout-dashboard"></i> Dashboard
+        <nav class="sidebar-nav" id="mainNav">
+            <a href="index.html" class="nav-link">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="calendar.html" class="nav-link">
+                <i data-lucide="calendar"></i> Calendar
+            </a>
+            <a href="bulk-messenger.html" class="nav-link">
+                <i data-lucide="send"></i> Bulk Messenger
             </a>
             <a href="reminders.html" class="nav-link">
                 <i data-lucide="bell"></i> Reminders
@@ -116,7 +125,119 @@
                 </table>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                window.initPage = () => {
+                    if (sessionStorage.getItem('lrms_role') !== 'admin') {
+                        alert("Restricted area.");
+                        if (typeof window.navigate === 'function') window.navigate('index.html');
+                        else window.location.replace('index.html');
+                        return;
+                    }
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    renderUsers();
+                };
+
+                window.toggleAddModal = function() {
+                    const m = document.getElementById('addModal');
+                    if (!m) return;
+                    m.classList.toggle('hidden');
+                    if (!m.classList.contains('hidden')) m.querySelector('input')?.focus();
+                }
+
+                window.togglePwModal = function(id = null, username = '') {
+                    const m = document.getElementById('pwModal');
+                    if (!m) return;
+                    m.classList.toggle('hidden');
+                    if (id) {
+                        const pwUserId = document.getElementById('pwUserId');
+                        const pwModalUser = document.getElementById('pwModalUser');
+                        if (pwUserId) pwUserId.value = id;
+                        if (pwModalUser) pwModalUser.innerText = `Change password for ${username}`;
+                        m.querySelector('input')?.focus();
+                    }
+                }
+
+                window.renderUsers = async function() {
+                    const users = await getAllUsers();
+                    const tbody = document.getElementById('userTableBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    const sessionUser = sessionStorage.getItem('lrms_user');
+
+                    users.forEach(u => {
+                        const tr = document.createElement('tr');
+                        const isSelf = u.name === sessionUser || u.username === 'admin';
+                        tr.innerHTML = `
+                            <td>
+                                <div style="font-weight:800;color:var(--text-primary)">${u.name}</div>
+                                <div style="font-size:0.7rem;color:var(--text-muted)">ID: ${u.id}</div>
+                            </td>
+                            <td><span class="pill pill-violet" style="font-size:0.75rem">@${u.username}</span></td>
+                            <td>
+                                <span class="badge ${u.role === 'admin' ? 'badge-legal' : 'badge-normal'}" style="font-size:0.65rem;border:none">
+                                    ${u.role.toUpperCase()}
+                                </span>
+                            </td>
+                            <td style="text-align:right">
+                                <button onclick="togglePwModal('${u.id}', '${u.username}')" class="btn btn-ghost" style="color:var(--amber-600);opacity:0.6">
+                                    <i data-lucide="key-round" style="width:16px"></i>
+                                </button>
+                                ${isSelf ? '' : `
+                                <button onclick="handleDelete('${u.id}')" class="btn btn-ghost" style="color:var(--red-600);opacity:0.6">
+                                    <i data-lucide="trash-2" style="width:16px"></i>
+                                </button>`}
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                const addUserForm = document.getElementById('addUserForm');
+                if (addUserForm) {
+                    addUserForm.onsubmit = async (e) => {
+                        e.preventDefault();
+                        const data = {
+                            name: document.getElementById('addName').value,
+                            username: document.getElementById('addUsername').value.trim(),
+                            password: document.getElementById('addPassword').value,
+                            role: document.getElementById('addRole').value
+                        };
+                        if (await addUser(data)) { toggleAddModal(); renderUsers(); }
+                        else alert("Username exists.");
+                    };
+                }
+
+                window.handleDelete = async function(id) {
+                    if (confirm("Delete user?")) {
+                        if (await deleteUser(id)) renderUsers();
+                    }
+                }
+
+                const changePwForm = document.getElementById('changePwForm');
+                if (changePwForm) {
+                    changePwForm.onsubmit = async (e) => {
+                        e.preventDefault();
+                        const id = document.getElementById('pwUserId').value;
+                        if (await changeUserPassword(id, document.getElementById('newPassword').value)) {
+                            alert("Saved.");
+                            togglePwModal();
+                        }
+                    };
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
+
 
     <!-- Add Modal -->
     <div id="addModal" class="modal hidden">
@@ -181,96 +302,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        window.initPage = () => {
-            if (sessionStorage.getItem('lrms_role') !== 'admin') {
-                alert("Restricted area.");
-                window.location.replace('index.html');
-                return;
-            }
-            lucide.createIcons();
-            renderUsers();
-        };
-
-        function toggleAddModal() {
-            const m = document.getElementById('addModal');
-            m.classList.toggle('hidden');
-            if (!m.classList.contains('hidden')) m.querySelector('input').focus();
-        }
-
-        function togglePwModal(id = null, username = '') {
-            const m = document.getElementById('pwModal');
-            m.classList.toggle('hidden');
-            if (id) {
-                document.getElementById('pwUserId').value = id;
-                document.getElementById('pwModalUser').innerText = `Change password for ${username}`;
-                m.querySelector('input').focus();
-            }
-        }
-
-        async function renderUsers() {
-            const users = await getAllUsers();
-            const tbody = document.getElementById('userTableBody');
-            tbody.innerHTML = '';
-            const sessionUser = sessionStorage.getItem('lrms_user');
-
-            users.forEach(u => {
-                const tr = document.createElement('tr');
-                const isSelf = u.name === sessionUser || u.username === 'admin';
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:800;color:var(--text-primary)">${u.name}</div>
-                        <div style="font-size:0.7rem;color:var(--text-muted)">ID: ${u.id}</div>
-                    </td>
-                    <td><span class="pill pill-violet" style="font-size:0.75rem">@${u.username}</span></td>
-                    <td>
-                        <span class="badge ${u.role === 'admin' ? 'badge-legal' : 'badge-normal'}" style="font-size:0.65rem;border:none">
-                            ${u.role.toUpperCase()}
-                        </span>
-                    </td>
-                    <td style="text-align:right">
-                        <button onclick="togglePwModal('${u.id}', '${u.username}')" class="btn btn-ghost" style="color:var(--amber-600);opacity:0.6">
-                            <i data-lucide="key-round" style="width:16px"></i>
-                        </button>
-                        ${isSelf ? '' : `
-                        <button onclick="handleDelete('${u.id}')" class="btn btn-ghost" style="color:var(--red-600);opacity:0.6">
-                            <i data-lucide="trash-2" style="width:16px"></i>
-                        </button>`}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            lucide.createIcons();
-        }
-
-        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                name: document.getElementById('addName').value,
-                username: document.getElementById('addUsername').value.trim(),
-                password: document.getElementById('addPassword').value,
-                role: document.getElementById('addRole').value
-            };
-            if (await addUser(data)) { toggleAddModal(); renderUsers(); }
-            else alert("Username exists.");
-        });
-
-        async function handleDelete(id) {
-            if (confirm("Delete user?")) {
-                if (await deleteUser(id)) renderUsers();
-            }
-        }
-
-        document.getElementById('changePwForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('pwUserId').value;
-            if (await changeUserPassword(id, document.getElementById('newPassword').value)) {
-                alert("Saved.");
-                togglePwModal();
-            }
-        });
-    </script>
 </body>
 
 </html>

@@ -638,7 +638,536 @@
                 </div>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                const pdElem = document.getElementById('printDate');
+                if (pdElem) pdElem.innerText = new Date().toLocaleString();
+
+                let currentAccountNo = null;
+
+                window.initPage = async () => {
+                    const params = new URLSearchParams(window.location.search);
+                    currentAccountNo = params.get('accountNo');
+                    if (!currentAccountNo) {
+                        if (typeof window.navigate === 'function') window.navigate("index.html");
+                        else window.location.href = "index.html";
+                        return;
+                    }
+
+                    await loadCustomerDetails();
+                    await loadDocuments();
+                    const actionDateInput = document.getElementById('actionDate');
+                    if (actionDateInput) actionDateInput.valueAsDate = new Date();
+                };
+
+                async function loadCustomerDetails() {
+                    if (!currentAccountNo) return;
+                    const customer = await getCustomerByAccountNo(currentAccountNo);
+                    if (!customer) {
+                        alert("Customer not found!");
+                        if (typeof window.navigate === 'function') window.navigate("index.html");
+                        else window.location.href = "index.html";
+                        return;
+                    }
+
+                    const headerName = document.getElementById('headerName');
+                    if (headerName) headerName.innerText = customer.name;
+
+                    const profileName = document.getElementById('profileName');
+                    if (profileName) profileName.innerText = customer.name;
+
+                    const profileAccNo = document.getElementById('profileAccNo');
+                    if (profileAccNo) profileAccNo.innerText = customer.accountNo;
+
+                    const profileLoanDate = document.getElementById('profileLoanDate');
+                    if (profileLoanDate) profileLoanDate.innerText = customer.loanDate || 'N/A';
+
+                    const profileLoanAmount = document.getElementById('profileLoanAmount');
+                    if (profileLoanAmount) profileLoanAmount.innerText = 'LKR ' + customer.loanAmount.toLocaleString();
+
+                    const profileInterest = document.getElementById('profileInterest');
+                    if (profileInterest) profileInterest.innerText = customer.interestRate;
+
+                    const profileCategory = document.getElementById('profileCategory');
+                    if (profileCategory) profileCategory.innerText = customer.category || 'N/A';
+
+                    const phone = customer.phone || '';
+                    const profilePhone = document.getElementById('profilePhone');
+                    if (profilePhone) profilePhone.innerText = phone || 'N/A';
+
+                    // Populate Print-Only Table
+                    const printCustName = document.getElementById('printCustName');
+                    if (printCustName) printCustName.innerText = customer.name;
+
+                    const printCustAccNo = document.getElementById('printCustAccNo');
+                    if (printCustAccNo) printCustAccNo.innerText = customer.accountNo;
+
+                    const printCustPhone = document.getElementById('printCustPhone');
+                    if (printCustPhone) printCustPhone.innerText = phone || 'N/A';
+
+                    const printCustCategory = document.getElementById('printCustCategory');
+                    if (printCustCategory) printCustCategory.innerText = customer.category || 'N/A';
+
+                    const printCustLoanDate = document.getElementById('printCustLoanDate');
+                    if (printCustLoanDate) printCustLoanDate.innerText = customer.loanDate || 'N/A';
+
+                    const printCustLoanAmount = document.getElementById('printCustLoanAmount');
+                    if (printCustLoanAmount) printCustLoanAmount.innerText = 'LKR ' + customer.loanAmount.toLocaleString();
+
+                    const printCustG1 = document.getElementById('printCustG1');
+                    if (printCustG1) printCustG1.innerText = customer.guarantor1 || 'None';
+
+                    const printCustG2 = document.getElementById('printCustG2');
+                    if (printCustG2) printCustG2.innerText = customer.guarantor2 || 'None';
+
+                    const printCustStatus = document.getElementById('printCustStatus');
+                    if (printCustStatus) printCustStatus.innerText = customer.status;
+
+                    const waBtn = document.getElementById('whatsappBtn');
+                    const waSection = document.getElementById('waSection');
+                    const waTemplate = document.getElementById('waTemplate');
+                    if (phone && phone.trim() !== '' && waSection && waBtn && waTemplate) {
+                        waSection.style.display = 'flex';
+                        waBtn.onclick = () => {
+                            const cleanPhone = phone.replace(/\D/g, '');
+                            const bankContact = "0372260658";
+                            const template = waTemplate.value;
+
+                            let messageText = "";
+                            if (template === 'legal') {
+                                messageText = `*Final Legal Notice (අවසාන නීති නිවේදනය)*\n\nDear ${customer.name},\nThis is a final warning regarding your significantly overdue loan account *${customer.accountNo}*. Despite previous reminders, you have failed to settle the outstanding amount. Please be advised that if payment is not received within two days, we will have to initiate formal legal action through the Cooperative Commissioner without further notice. This may result in additional costs and legal complications for you.\n\nImmediate contact is required: ${bankContact}\n\nGalapitiyagama Sanasa Bank.`;
+                            } else {
+                                messageText = `*Loan Recovery Reminder*\n\nDear ${customer.name},\nThis is a friendly reminder regarding your loan account *${customer.accountNo}* at Galapitiyagama Sanasa Bank. Your payments are currently overdue. Please take necessary steps to settle them as soon as possible.\n\nFor more information, please contact us at: ${bankContact}\n\nThank you.\nGalapitiyagama Sanasa Bank.`;
+                            }
+
+                            const message = encodeURIComponent(messageText);
+                            window.open(`https://wa.me/${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=${message}`, '_blank');
+                        };
+
+                        const smsBtn = document.getElementById('smsBtn');
+                        if (smsBtn) {
+                            smsBtn.onclick = () => {
+                                const cleanPhone = phone.replace(/\D/g, '');
+                                const bankContact = "0372260658";
+                                const template = waTemplate.value;
+
+                                let messageText = "";
+                                if (template === 'legal') {
+                                    messageText = `Final Legal Notice\nDear ${customer.name}, This is a final warning for loan *${customer.accountNo}*. If payment not received in 2 days, we will initiate legal action. Call: ${bankContact} Sanasa Bank.`;
+                                } else {
+                                    messageText = `Loan Reminder\nDear ${customer.name}, Reminder for loan *${customer.accountNo}*. Please settle overdue payments soon. Call: ${bankContact} Sanasa Bank.`;
+                                }
+
+                                const message = encodeURIComponent(messageText);
+                                const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
+                                window.location.href = `sms:${cleanPhone}${separator}body=${message}`;
+                            };
+                        }
+                    } else if (waSection) {
+                        waSection.style.display = 'none';
+                    }
+
+                    const g1 = customer.guarantor1 || 'None';
+                    const profileGuarantor1 = document.getElementById('profileGuarantor1');
+                    if (profileGuarantor1) {
+                        profileGuarantor1.innerText = g1;
+                        profileGuarantor1.title = g1;
+                    }
+
+                    const g2 = customer.guarantor2 || 'None';
+                    const profileGuarantor2 = document.getElementById('profileGuarantor2');
+                    if (profileGuarantor2) {
+                        profileGuarantor2.innerText = g2;
+                        profileGuarantor2.title = g2;
+                    }
+
+                    const badge = document.getElementById('profileStatusBadge');
+                    const statusSelect = document.getElementById('statusSelect');
+                    if (badge && statusSelect) {
+                        badge.innerText = customer.status;
+                        statusSelect.value = customer.status;
+
+                        const sDateInput = document.getElementById('statusDateInput');
+                        if (sDateInput) sDateInput.value = customer.statusDate || new Date().toISOString().split('T')[0];
+
+                        badge.className = 'badge';
+                        if (customer.status.includes('High Risk')) badge.classList.add('badge-risk');
+                        else if (customer.status.includes('Legal Action')) badge.classList.add('badge-legal');
+                        else if (customer.status === 'Loan Closed') badge.classList.add('badge-closed');
+                        else badge.classList.add('badge-normal');
+                    }
+
+                    const loadingState = document.getElementById('loadingState');
+                    if (loadingState) loadingState.style.display = 'none';
+                    await loadTimeline();
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                async function loadTimeline() {
+                    const actions = await getCustomerActions(currentAccountNo);
+                    const container = document.getElementById('timelineContainer');
+                    const printBody = document.getElementById('printHistoryBody');
+                    const actionCount = document.getElementById('actionCount');
+                    if (actionCount) {
+                        actionCount.innerText = actions.length + ' Logs';
+                    }
+
+                    if (actions.length === 0) {
+                        if (container) container.innerHTML = `<div style="text-align:center;color:#9ca3af;padding:20px;font-style:italic">No actions recorded yet.</div>`;
+                        if (printBody) printBody.innerHTML = `<tr><td colspan="4" style="text-align:center; font-style:italic">No actions recorded yet.</td></tr>`;
+                        return;
+                    }
+                    if (container) container.innerHTML = '';
+                    if (printBody) printBody.innerHTML = '';
+
+                    actions.forEach(action => {
+                        let icon = "file-text", color = "violet";
+                        if (action.actionType.toLowerCase().includes("call")) { icon = "phone-call"; color = "violet"; }
+                        else if (action.actionType.toLowerCase().includes("whatsapp")) { icon = "message-circle"; color = "emerald"; }
+                        else if (action.actionType.includes("LOD")) { icon = "alert-octagon"; color = "red"; }
+                        else if (action.actionType.includes("Normal Text Message")) { icon = "smartphone"; color = "blue"; }
+                        else if (action.actionType.includes("Attention")) { icon = "mail-warning"; color = "amber"; }
+                        else if (action.actionType.includes("visiting")) { icon = "map-pin"; color = "emerald"; }
+
+                        const dateStr = new Date(action.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                        // Timeline Item (Screen)
+                        if (container) {
+                            const item = document.createElement('div');
+                            item.className = 'tl-item';
+                            item.innerHTML = `
+                                <div class="tl-dot"><i data-lucide="${icon}" class="stat-icon ${color}" style="width:16px;height:16px;background:none"></i></div>
+                                <div class="tl-card">
+                                    <div class="tl-card-header">
+                                        <div>
+                                            <h5>${action.actionType}</h5>
+                                            <p style="font-size:0.7rem;color:#9ca3af;font-weight:600;margin-top:2px">${dateStr}</p>
+                                        </div>
+                                        <button onclick="openEditActionModal('${action.id}')" class="btn btn-ghost no-print" style="padding:4px;color:#9ca3af">
+                                            <i data-lucide="pencil" style="width:14px;height:14px"></i>
+                                        </button>
+                                        <button onclick="handleDeleteHistoryItem(event, '${action.id}')" class="btn btn-ghost no-print" style="padding:4px;color:#ef4444;margin-left:4px" title="Delete Action">
+                                            <i data-lucide="trash-2" style="width:14px;height:14px"></i>
+                                        </button>
+                                    </div>
+                                    ${action.response ? `
+                                    <div style="background:#f9fafb;border:1px solid #f1f5f9;border-radius:10px;padding:10px;margin-bottom:10px">
+                                        <p style="font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:2px">Response</p>
+                                        <p style="font-size:0.8rem;color:#4b5563;font-style:italic">"${action.response}"</p>
+                                    </div>` : ''}
+                                    ${action.followUpDate ? `
+                                    <div style="display:inline-flex;align-items:center;gap:6px;background:#fff1f2;padding:4px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;color:#be123c;margin-bottom:10px">
+                                        <i data-lucide="bell-ring" style="width:12px;height:12px"></i> Follow-up: ${action.followUpDate}
+                                    </div>` : ''}
+                                    ${action.officerNote ? `
+                                    <div>
+                                        <p style="font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:2px">Officer Note</p>
+                                        <p style="font-size:0.8rem;color:#6b7280">${action.officerNote}</p>
+                                    </div>` : ''}
+                                </div>`;
+                            container.appendChild(item);
+                        }
+
+                        // History Row (Print)
+                        if (printBody) {
+                            const tr = document.createElement('tr');
+                            let notes = [];
+                            if (action.response) notes.push(`<strong>Response:</strong> ${action.response}`);
+                            if (action.officerNote) notes.push(`<strong>Note:</strong> ${action.officerNote}`);
+
+                            tr.innerHTML = `
+                                    <td>${dateStr}</td>
+                                    <td style="font-weight:700">${action.actionType}</td>
+                                    <td>${notes.join('<br>') || '-'}</td>
+                                    <td>${action.followUpDate || '-'}</td>
+                                `;
+                            printBody.appendChild(tr);
+                        }
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                const actionForm = document.getElementById('actionForm');
+                if (actionForm) {
+                    actionForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const actionData = {
+                            customerAccountNo: currentAccountNo,
+                            actionType: document.getElementById('actionType').value,
+                            date: document.getElementById('actionDate').value,
+                            response: document.getElementById('actionResponse').value.trim() || null,
+                            officerNote: document.getElementById('officerNote').value.trim() || null,
+                            followUpDate: document.getElementById('followUpDate').value || null
+                        };
+                        if (await addAction(actionData)) {
+                            document.getElementById('actionResponse').value = '';
+                            document.getElementById('officerNote').value = '';
+                            document.getElementById('followUpDate').value = '';
+                            loadTimeline();
+                        } else alert("Failed to save.");
+                    });
+                }
+
+                const updateStatusBtn = document.getElementById('updateStatusBtn');
+                if (updateStatusBtn) {
+                    updateStatusBtn.addEventListener('click', async () => {
+                        const status = document.getElementById('statusSelect').value;
+                        const date = document.getElementById('statusDateInput').value;
+                        if (!date) { alert("Select a date."); return; }
+                        if (await updateCustomerStatus(currentAccountNo, status, date)) loadCustomerDetails();
+                        else alert("Failed to update.");
+                    });
+                }
+
+                window.confirmDeleteCustomer = async function() {
+                    if (confirm("Delete this customer and all history?")) {
+                        if (await deleteCustomer(currentAccountNo)) {
+                            if (typeof window.navigate === 'function') window.navigate("index.html");
+                            else window.location.href = "index.html";
+                        }
+                        else alert("Failed to delete.");
+                    }
+                }
+
+                window.toggleEditModal = function() {
+                    const m = document.getElementById('editModal');
+                    if (!m) return;
+                    m.classList.toggle('open');
+                    if (m.classList.contains('open')) {
+                        getCustomerByAccountNo(currentAccountNo).then(c => {
+                            if (!c) return;
+                            document.getElementById('editCustName').value = c.name;
+                            document.getElementById('editLoanDate').value = c.loanDate || '';
+                            document.getElementById('editLoanAmount').value = c.loanAmount;
+                            document.getElementById('editInterestRate').value = c.interestRate;
+                            document.getElementById('editLoanCategory').value = c.category;
+                            document.getElementById('editGuarantor1').value = c.guarantor1 || '';
+                            document.getElementById('editGuarantor2').value = c.guarantor2 || '';
+                            document.getElementById('editPhone').value = c.phone || '';
+                        });
+                    }
+                }
+
+                const editCustomerForm = document.getElementById('editCustomerForm');
+                if (editCustomerForm) {
+                    editCustomerForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const d = {
+                            name: document.getElementById('editCustName').value,
+                            loanDate: document.getElementById('editLoanDate').value,
+                            loanAmount: parseFloat(document.getElementById('editLoanAmount').value),
+                            interestRate: parseFloat(document.getElementById('editInterestRate').value),
+                            category: document.getElementById('editLoanCategory').value,
+                            guarantor1: document.getElementById('editGuarantor1').value,
+                            guarantor2: document.getElementById('editGuarantor2').value,
+                            phone: document.getElementById('editPhone').value.trim()
+                        };
+                        if (await updateCustomer(currentAccountNo, d)) { toggleEditModal(); loadCustomerDetails(); }
+                        else alert("Failed update.");
+                    });
+                }
+
+                window.openEditActionModal = async function(id) {
+                    const customerActions = await getCustomerActions(currentAccountNo);
+                    const a = customerActions.find(item => item.id === id);
+                    if (!a) return;
+                    document.getElementById('editActionId').value = id;
+                    document.getElementById('editActionType').value = a.actionType;
+                    document.getElementById('editActionDate').value = a.date;
+                    document.getElementById('editActionResponse').value = a.response || '';
+                    document.getElementById('editFollowUpDate').value = a.followUpDate || '';
+                    document.getElementById('editOfficerNote').value = a.officerNote || '';
+                    document.getElementById('editActionModal').classList.add('open');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                window.closeEditActionModal = function() {
+                    const modal = document.getElementById('editActionModal');
+                    if (modal) modal.classList.remove('open');
+                }
+
+                const editActionForm = document.getElementById('editActionForm');
+                if (editActionForm) {
+                    editActionForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const id = document.getElementById('editActionId').value;
+                        const d = {
+                            actionType: document.getElementById('editActionType').value,
+                            date: document.getElementById('editActionDate').value,
+                            response: document.getElementById('editActionResponse').value.trim() || null,
+                            followUpDate: document.getElementById('editFollowUpDate').value || null,
+                            officerNote: document.getElementById('editOfficerNote').value.trim() || null,
+                        };
+                        if (await updateAction(id, d)) { closeEditActionModal(); loadTimeline(); }
+                        else alert("Failed update.");
+                    });
+                }
+
+                window.handleDeleteAction = async function() {
+                    const id = document.getElementById('editActionId').value;
+                    if (confirm("Are you sure you want to delete this action? It can be restored from the Recycle Bin.")) {
+                        if (await deleteAction(id)) {
+                            closeEditActionModal();
+                            loadTimeline();
+                        } else {
+                            alert("Failed to delete action.");
+                        }
+                    }
+                }
+
+                async function loadDocuments() {
+                    const docs = await getCustomerDocuments(currentAccountNo);
+                    const container = document.getElementById('docsContainer');
+                    if (!container) return;
+                    container.innerHTML = '';
+
+                    if (docs.length === 0) {
+                        container.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#9ca3af; font-style:italic">No documents uploaded.</p>';
+                        return;
+                    }
+
+                    docs.forEach(doc => {
+                        const div = document.createElement('div');
+                        div.className = 'card p-2 relative group';
+                        div.style.border = '1px solid #ede9fe';
+                        div.innerHTML = `
+                            <img src="${doc.fileData}" class="w-full h-32 object-cover rounded-lg cursor-pointer" onclick="window.open('${doc.fileData}', '_blank')">
+                            <p class="text-xs font-bold mt-2 truncate" title="${doc.name}">${doc.name}</p>
+                            <button onclick="handleDeleteDoc('${doc.id}')" class="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i data-lucide="trash-2" style="width:12px;height:12px"></i>
+                            </button>
+                            <p class="text-[10px] text-gray-400">${doc.date}</p>
+                        `;
+                        container.appendChild(div);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                window.handleDeleteDoc = async function(id) {
+                    if (confirm("Delete this document?")) {
+                        if (await deleteDocument(id)) loadDocuments();
+                    }
+                }
+
+                const docForm = document.getElementById('docForm');
+                if (docForm) {
+                    docForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const fileInput = document.getElementById('docFile');
+                        const file = fileInput.files[0];
+                        const nameElem = document.getElementById('docName');
+                        const name = nameElem ? nameElem.value.trim() : '';
+
+                        if (!file || !name) { alert("Select a file and enter a name."); return; }
+
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            const docData = {
+                                customerAccountNo: currentAccountNo,
+                                name: name,
+                                fileData: event.target.result,
+                                date: new Date().toISOString().split('T')[0]
+                            };
+                            if (await saveDocument(docData)) {
+                                docForm.reset();
+                                loadDocuments();
+                            } else alert("Failed to upload.");
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+
+                window.calculatePenalty = function() {
+                    const interestElem = document.getElementById('calcInterest');
+                    const calcValue = document.getElementById('calcValue');
+                    if (!interestElem || !calcValue) return;
+
+                    const interest = parseFloat(interestElem.value) || 0;
+                    const penalty = (interest * 2) / 20;
+                    calcValue.innerText = 'LKR ' + penalty.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+
+                window.resetDetailCalc = function() {
+                    const interestElem = document.getElementById('calcInterest');
+                    if (interestElem) interestElem.value = '';
+                    calculatePenalty();
+                }
+
+                let undoStack = [];
+
+                window.handleDeleteHistoryItem = async function(event, actionId) {
+                    event.stopPropagation();
+                    if (!confirm("Are you sure you want to delete this history item?")) return;
+
+                    const success = await deleteAction(actionId);
+                    if (success) {
+                        undoStack.push({ type: 'delete', actionId: actionId });
+                        showToast("Action deleted", "Undo", async () => {
+                            const last = undoStack.pop();
+                            if (last && last.type === 'delete') {
+                                await restoreAction(last.actionId);
+                                showToast("Action restored");
+                                loadTimeline();
+                            }
+                        });
+                        loadTimeline();
+                    }
+                }
+
+                function showToast(message, actionText, actionFn) {
+                    let container = document.querySelector('.toast-container');
+                    if (!container) {
+                        container = document.createElement('div');
+                        container.className = 'toast-container';
+                        document.body.appendChild(container);
+                    }
+
+                    const toast = document.createElement('div');
+                    toast.className = 'toast';
+                    toast.innerHTML = `
+                        <i data-lucide="info" style="width:16px;height:16px"></i>
+                        <span style="flex:1">${message}</span>
+                        ${actionText ? `<button class="toast-btn">${actionText}</button>` : ''}
+                    `;
+
+                    container.appendChild(toast);
+                    if (typeof lucide !== 'undefined') lucide.createIcons({ props: { "data-lucide": ["info"] }, scope: toast });
+
+                    setTimeout(() => toast.classList.add('show'), 10);
+
+                    if (actionFn) {
+                        const btn = toast.querySelector('.toast-btn');
+                        if (btn) {
+                            btn.onclick = () => {
+                                actionFn();
+                                toast.classList.remove('show');
+                                setTimeout(() => toast.remove(), 400);
+                            };
+                        }
+                    }
+
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.classList.remove('show');
+                            setTimeout(() => toast.remove(), 400);
+                        }
+                    }, 6000);
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
+
 
     <!-- Edit Profile Modal -->
     <div id="editModal" class="modal-wrapper">
@@ -761,7 +1290,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=3.5"></script>
     <script>
         document.getElementById('actionDate').valueAsDate = new Date();
         const pdElem = document.getElementById('printDate');

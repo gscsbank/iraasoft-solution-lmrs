@@ -149,141 +149,163 @@
             </div>
 
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                let allReminders = [];
+                let currentFilter = 'all';
+
+                window.initPage = async function() {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    if (sessionStorage.getItem('lrms_role') === 'admin') {
+                        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+                    }
+                    await loadData();
+                };
+
+                window.loadData = async function() {
+                    try {
+                        const snapshot = await db.collection("actions").get();
+                        allReminders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(a => a.followUpDate);
+                        for (let r of allReminders) {
+                            const c = await getCustomerByAccountNo(r.customerAccountNo);
+                            r.customerName = c ? c.name : 'Unknown';
+                            r.loanAmount = c ? c.loanAmount : 0;
+                        }
+                        allReminders.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
+                        renderTable();
+                    } catch (err) {
+                        console.error(err);
+                        const rtb = document.getElementById('remindersTableBody');
+                        if (rtb) rtb.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#ef4444">Error loading data.</td></tr>`;
+                    }
+                }
+
+                window.setFilter = function(f) {
+                    currentFilter = f;
+                    const btns = ['all', 'overdue', 'today', 'upcoming'];
+                    btns.forEach(b => {
+                        const el = document.getElementById('btn-filter-' + b);
+                        if (!el) return;
+                        if (b === f) {
+                            el.className = "btn btn-primary";
+                            el.style.background = "linear-gradient(135deg, var(--violet-600), var(--violet-800))";
+                            el.style.color = "#fff";
+                        } else {
+                            el.className = "btn btn-ghost";
+                            el.style.background = "transparent";
+                            el.style.color = "var(--text-secondary)";
+                        }
+                    });
+                    renderTable();
+                }
+
+                const si = document.getElementById('searchInput');
+                if (si) {
+                    si.addEventListener('input', renderTable);
+                }
+
+                window.renderTable = function() {
+                    const si = document.getElementById('searchInput');
+                    if (!si) return;
+                    const query = si.value.toLowerCase();
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayDate = new Date(new Date().setHours(0, 0, 0, 0));
+
+                    const filtered = allReminders.filter(r => {
+                        const matchText = (r.customerName || '').toLowerCase().includes(query) ||
+                            (r.customerAccountNo || '').toLowerCase().includes(query) ||
+                            (r.response && r.response.toLowerCase().includes(query));
+                        if (!matchText) return false;
+
+                        const rDate = new Date(r.followUpDate);
+                        if (currentFilter === 'overdue') return rDate < todayDate;
+                        if (currentFilter === 'today') return r.followUpDate === todayStr;
+                        if (currentFilter === 'upcoming') return rDate > todayDate;
+                        return true;
+                    });
+
+                    const tbody = document.getElementById('remindersTableBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+
+                    if (filtered.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:120px;color:#9ca3af;font-style:italic">No reminders found.</td></tr>`;
+                        return;
+                    }
+
+                    filtered.forEach(r => {
+                        const rDate = new Date(r.followUpDate);
+                        const isOverdue = rDate < todayDate;
+                        const isToday = r.followUpDate === todayStr;
+
+                        let badge = '<span class="badge badge-normal" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0">Upcoming</span>';
+                        let dateStyle = 'color:var(--text-primary)';
+                        if (isOverdue) {
+                            badge = '<span class="badge badge-legal" style="background:#fff1f2;color:#be123c;border-color:#fecdd3">Overdue</span>';
+                            dateStyle = 'color:#dc2626;font-weight:800';
+                        } else if (isToday) {
+                            badge = '<span class="badge badge-risk" style="background:#fffbeb;color:#b45309;border-color:#fde68a">Today</span>';
+                            dateStyle = 'color:#d97706;font-weight:800';
+                        }
+
+                        const dStr = rDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                        const tr = document.createElement('tr');
+                        tr.style.cursor = 'pointer';
+                        tr.onclick = (e) => {
+                            if (!e.target.closest('button')) {
+                                if (typeof window.navigate === 'function') window.navigate(`customer-detail.html?accountNo=\${r.customerAccountNo}`);
+                                else window.location.href = `customer-detail.html?accountNo=\${r.customerAccountNo}`;
+                            }
+                        };
+                        tr.innerHTML = `
+                            <td>\${badge}</td>
+                            <td>
+                                <div style="font-weight:800;color:var(--text-primary)">\${r.customerName}</div>
+                                <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: \${r.customerAccountNo} &bull; LKR \${(r.loanAmount || 0).toLocaleString()}</div>
+                            </td>
+                            <td style="\${dateStyle}">\${dStr}</td>
+                            <td>
+                                <div style="font-weight:600">\${r.actionType}</div>
+                                <div style="font-size:0.75rem;color:var(--text-muted);font-style:italic">"\${r.response || 'No response'}"</div>
+                            </td>
+                            <td style="text-align:right">
+                                <button onclick="dismissFollowUp(event, '\${r.id}')" title="Dismiss" class="btn btn-ghost" style="color:#d1d5db;padding:8px">
+                                    <i data-lucide="check-circle"></i>
+                                </button>
+                            </td>`;
+                        tbody.appendChild(tr);
+                        const b = tr.querySelector('button');
+                        if (b) {
+                            b.onmouseover = () => { b.style.color = '#dc2626'; b.style.background = '#fee2e2'; };
+                            b.onmouseout = () => { b.style.color = '#d1d5db'; b.style.background = 'transparent'; };
+                        }
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                window.dismissFollowUp = async function(event, id) {
+                    event.stopPropagation();
+                    if (confirm("Dismiss this reminder?")) {
+                        if (await clearFollowUp(id)) {
+                            allReminders = allReminders.filter(r => r.id !== id);
+                            renderTable();
+                        } else alert("Failed.");
+                    }
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        let allReminders = [];
-        let currentFilter = 'all';
 
-        async function init() {
-            lucide.createIcons();
-            if (sessionStorage.getItem('lrms_role') === 'admin') {
-                document.getElementById('adminMenuLink')?.classList.remove('hidden');
-                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
-            }
-            await loadData();
-        }
-
-        window.initPage = () => {
-            init();
-        };
-
-        async function loadData() {
-            try {
-                const snapshot = await db.collection("actions").get();
-                allReminders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(a => a.followUpDate);
-                for (let r of allReminders) {
-                    const c = await getCustomerByAccountNo(r.customerAccountNo);
-                    r.customerName = c ? c.name : 'Unknown';
-                    r.loanAmount = c ? c.loanAmount : 0;
-                }
-                allReminders.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
-                renderTable();
-            } catch (err) {
-                console.error(err);
-                document.getElementById('remindersTableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#ef4444">Error loading data.</td></tr>`;
-            }
-        }
-
-        function setFilter(f) {
-            currentFilter = f;
-            const btns = ['all', 'overdue', 'today', 'upcoming'];
-            btns.forEach(b => {
-                const el = document.getElementById('btn-filter-' + b);
-                if (b === f) {
-                    el.className = "btn btn-primary";
-                    el.style.background = "linear-gradient(135deg, var(--violet-600), var(--violet-800))";
-                    el.style.color = "#fff";
-                } else {
-                    el.className = "btn btn-ghost";
-                    el.style.background = "transparent";
-                    el.style.color = "var(--text-secondary)";
-                }
-            });
-            renderTable();
-        }
-
-        document.getElementById('searchInput').addEventListener('input', renderTable);
-
-        function renderTable() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const todayStr = new Date().toISOString().split('T')[0];
-            const todayDate = new Date(new Date().setHours(0, 0, 0, 0));
-
-            const filtered = allReminders.filter(r => {
-                const matchText = r.customerName.toLowerCase().includes(query) ||
-                    r.customerAccountNo.toLowerCase().includes(query) ||
-                    (r.response && r.response.toLowerCase().includes(query));
-                if (!matchText) return false;
-
-                const rDate = new Date(r.followUpDate);
-                if (currentFilter === 'overdue') return rDate < todayDate;
-                if (currentFilter === 'today') return r.followUpDate === todayStr;
-                if (currentFilter === 'upcoming') return rDate > todayDate;
-                return true;
-            });
-
-            const tbody = document.getElementById('remindersTableBody');
-            tbody.innerHTML = '';
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:120px;color:#9ca3af;font-style:italic">No reminders found.</td></tr>`;
-                return;
-            }
-
-            filtered.forEach(r => {
-                const rDate = new Date(r.followUpDate);
-                const isOverdue = rDate < todayDate;
-                const isToday = r.followUpDate === todayStr;
-
-                let badge = '<span class="badge badge-normal" style="background:#f0fdf4;color:#15803d;border-color:#bbf7d0">Upcoming</span>';
-                let dateStyle = 'color:var(--text-primary)';
-                if (isOverdue) {
-                    badge = '<span class="badge badge-legal" style="background:#fff1f2;color:#be123c;border-color:#fecdd3">Overdue</span>';
-                    dateStyle = 'color:#dc2626;font-weight:800';
-                } else if (isToday) {
-                    badge = '<span class="badge badge-risk" style="background:#fffbeb;color:#b45309;border-color:#fde68a">Today</span>';
-                    dateStyle = 'color:#d97706;font-weight:800';
-                }
-
-                const dStr = rDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-                const tr = document.createElement('tr');
-                tr.onclick = (e) => { if (!e.target.closest('button')) window.location.href = `customer-detail.html?accountNo=${r.customerAccountNo}`; };
-                tr.innerHTML = `
-                    <td>${badge}</td>
-                    <td>
-                        <div style="font-weight:800;color:var(--text-primary)">${r.customerName}</div>
-                        <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${r.customerAccountNo} &bull; LKR ${r.loanAmount.toLocaleString()}</div>
-                    </td>
-                    <td style="${dateStyle}">${dStr}</td>
-                    <td>
-                        <div style="font-weight:600">${r.actionType}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted);font-style:italic">"${r.response || 'No response'}"</div>
-                    </td>
-                    <td style="text-align:right">
-                        <button onclick="dismissFollowUp(event, '${r.id}')" title="Dismiss" class="btn btn-ghost" style="color:#d1d5db;padding:8px">
-                            <i data-lucide="check-circle"></i>
-                        </button>
-                    </td>`;
-                tbody.appendChild(tr);
-                const btn = tr.querySelector('button');
-                btn.onmouseover = () => { btn.style.color = '#dc2626'; btn.style.background = '#fee2e2'; };
-                btn.onmouseout = () => { btn.style.color = '#d1d5db'; btn.style.background = 'transparent'; };
-            });
-            lucide.createIcons();
-        }
-
-        async function dismissFollowUp(event, id) {
-            event.stopPropagation();
-            if (confirm("Dismiss this reminder?")) {
-                if (await clearFollowUp(id)) {
-                    allReminders = allReminders.filter(r => r.id !== id);
-                    renderTable();
-                } else alert("Failed.");
-            }
-        }
-    </script>
 </body>
 
 </html>

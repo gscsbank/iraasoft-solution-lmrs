@@ -370,285 +370,290 @@
         </div>
     </div>
 
-    <!-- App Logic -->
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        lucide.createIcons();
-
-        const overlay = document.querySelector('.modal-overlay');
-        overlay.addEventListener('click', toggleModal);
-
-        function toggleModal() {
-            const body = document.querySelector('body');
-            const modal = document.querySelector('.modal');
-            modal.classList.toggle('opacity-0');
-            modal.classList.toggle('pointer-events-none');
-            body.classList.toggle('modal-active');
-            if (modal.classList.contains('opacity-0')) {
-                document.getElementById('addCustomerForm').reset();
-            }
-        }
-
-        document.getElementById('addCustomerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const customerData = {
-                accountNo: document.getElementById('accNo').value,
-                name: document.getElementById('custName').value,
-                loanDate: document.getElementById('loanDate').value,
-                loanAmount: parseFloat(document.getElementById('loanAmount').value),
-                interestRate: parseFloat(document.getElementById('interestRate').value),
-                category: document.getElementById('loanCategory').value,
-                status: document.getElementById('initialStatus').value,
-                statusDate: new Date().toISOString().split('T')[0],
-                guarantor1: document.getElementById('guarantor1').value,
-                guarantor2: document.getElementById('guarantor2').value,
-                phone: document.getElementById('phoneNumber').value.trim()
-            };
-            const existing = await getCustomerByAccountNo(customerData.accountNo);
-            if (existing) { alert("Account Number already exists!"); return; }
-            const success = await addCustomer(customerData);
-            if (success) { toggleModal(); loadTableData(); }
-            else alert("Failed to add customer.");
-        });
-
-        async function loadTableData() {
-            const customers = await getAllCustomers();
-            const tbody = document.getElementById('customerTableBody');
-            tbody.innerHTML = '';
-            let total = 0, risk = 0, legal = 0;
-
-            const filterQuery = document.getElementById('searchInput').value.toLowerCase();
-            const statusF = document.getElementById('statusFilter').value;
-
-            const filtered = customers.filter(c => {
-                const accStr = (c.accountNo || '').toString().toLowerCase();
-                const nameStr = (c.name || '').toString().toLowerCase();
-                const matchesSearch = accStr.includes(filterQuery) || nameStr.includes(filterQuery);
-                const matchesStatus = statusF === 'all' || (c.status || '').toLowerCase().includes(statusF.toLowerCase());
-
-                const match = matchesSearch && matchesStatus;
-                if (match) { total++; if (c.status.includes('High Risk')) risk++; if (c.status.includes('Legal Action')) legal++; }
-                return match;
-            });
-
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-risk').innerText = risk;
-            document.getElementById('stat-legal').innerText = legal;
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:#9ca3af">No records found.</td></tr>`;
-                loadFollowUps(); return;
-            }
-
-            filtered.forEach((c, idx) => {
-                let badgeClass = 'badge badge-normal';
-                if (c.status.includes('High Risk')) badgeClass = 'badge badge-risk';
-                if (c.status.includes('Legal Action')) badgeClass = 'badge badge-legal';
-                if (c.status === 'Loan Closed') badgeClass = 'badge badge-closed';
-
-                const amt = 'LKR ' + c.loanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align:center" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="customer-check" data-account="${c.accountNo}" onchange="updateBulkSelection()">
-                    </td>
-                    <td style="text-align:center;color:#9ca3af;font-size:0.8rem">${idx + 1}</td>
-                    <td style="font-weight:700;color:#1e1b4b" onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'" class="cursor-pointer">${c.accountNo}</td>
-                    <td style="font-weight:500" onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'" class="cursor-pointer">${c.name}</td>
-                    <td>
-                        <div style="font-weight:600;color:#1e1b4b">${amt}</div>
-                        <div style="font-size:0.75rem;color:#6b7280">${c.category} &bull; ${c.interestRate}% Int.</div>
-                    </td>
-                    <td><span class="${badgeClass}">${c.status}</span></td>
-                    <td style="text-align:right">
-                        <button onclick="handleDeleteLocal(event, '${c.accountNo}')"
-                            style="padding:6px 8px;border-radius:8px;color:#ef4444;background:#fee2e2;border:none;cursor:pointer;opacity:1;transition:all .2s;margin-right:4px"
-                            class="row-action-btn" title="Delete Customer">
-                            <i data-lucide="trash-2" style="width:15px;height:15px"></i>
-                        </button>
-                        <button onclick="window.location.href='customer-detail.html?accountNo=${c.accountNo}'"
-                            style="padding:6px 8px;border-radius:8px;color:#7c3aed;background:#f5f3ff;border:none;cursor:pointer;opacity:1;transition:all .2s"
-                            class="row-action-btn" title="View Profile">
-                            <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
-                        </button>
-                    </td>`;
-                tbody.appendChild(tr);
-            });
-
-            loadFollowUps();
+        <script>
             lucide.createIcons();
-            updateBulkSelection();
-        }
 
-        // ---- Bulk Actions ----
-        function updateBulkSelection() {
-            const checks = document.querySelectorAll('.customer-check:checked');
-            const bar = document.getElementById('bulkActionBar');
-            const countText = document.getElementById('bulkCountText');
+            const overlay = document.querySelector('.modal-overlay');
+            if (overlay) overlay.addEventListener('click', toggleModal);
 
-            if (checks.length > 0) {
-                bar.classList.remove('hidden');
-                bar.classList.add('flex');
-                countText.innerText = `${checks.length} selected`;
-            } else {
-                bar.classList.add('hidden');
-                bar.classList.remove('flex');
+            function toggleModal() {
+                const body = document.querySelector('body');
+                const modal = document.querySelector('.modal');
+                if (!modal) return;
+                modal.classList.toggle('opacity-0');
+                modal.classList.toggle('pointer-events-none');
+                body.classList.toggle('modal-active');
+                if (modal.classList.contains('opacity-0')) {
+                    const form = document.getElementById('addCustomerForm');
+                    if (form) form.reset();
+                }
             }
-        }
 
-        function goToBulkMessenger() {
-            const checks = document.querySelectorAll('.customer-check:checked');
-            const accounts = Array.from(checks).map(c => c.getAttribute('data-account'));
-            if (accounts.length > 0) {
-                localStorage.setItem('selected_bulk_accounts', JSON.stringify(accounts));
-            } else {
-                localStorage.removeItem('selected_bulk_accounts');
+            const addForm = document.getElementById('addCustomerForm');
+            if (addForm) {
+                addForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const customerData = {
+                        accountNo: document.getElementById('accNo').value,
+                        name: document.getElementById('custName').value,
+                        loanDate: document.getElementById('loanDate').value,
+                        loanAmount: parseFloat(document.getElementById('loanAmount').value),
+                        interestRate: parseFloat(document.getElementById('interestRate').value),
+                        category: document.getElementById('loanCategory').value,
+                        status: document.getElementById('initialStatus').value,
+                        statusDate: new Date().toISOString().split('T')[0],
+                        guarantor1: document.getElementById('guarantor1').value,
+                        guarantor2: document.getElementById('guarantor2').value,
+                        phone: document.getElementById('phoneNumber').value.trim()
+                    };
+                    const existing = await getCustomerByAccountNo(customerData.accountNo);
+                    if (existing) { alert("Account Number already exists!"); return; }
+                    const success = await addCustomer(customerData);
+                    if (success) { toggleModal(); loadTableData(); }
+                    else alert("Failed to add customer.");
+                });
             }
-            window.location.href = 'bulk-messenger.html';
-        }
 
-        // Add event listener to sidebar link for Bulk Messenger
-        document.querySelectorAll('a[href="bulk-messenger.html"]').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                goToBulkMessenger();
-            });
-        });
+            async function loadTableData() {
+                const customers = await getAllCustomers();
+                const tbody = document.getElementById('customerTableBody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                let total = 0, risk = 0, legal = 0;
 
-        async function handleDeleteLocal(event, accountNo) {
-            event.stopPropagation();
-            if (confirm("Are you sure you want to delete this customer? This will move them to the Recycle Bin.")) {
-                const success = await deleteCustomer(accountNo);
-                if (success) {
-                    loadTableData();
+                const filterQuery = (document.getElementById('searchInput')?.value || '').toLowerCase();
+                const statusF = document.getElementById('statusFilter')?.value || 'all';
+
+                const filtered = customers.filter(c => {
+                    const accStr = (c.accountNo || '').toString().toLowerCase();
+                    const nameStr = (c.name || '').toString().toLowerCase();
+                    const matchesSearch = accStr.includes(filterQuery) || nameStr.includes(filterQuery);
+                    const matchesStatus = statusF === 'all' || (c.status || '').toLowerCase().includes(statusF.toLowerCase());
+
+                    const match = matchesSearch && matchesStatus;
+                    if (match) { total++; if (c.status.includes('High Risk')) risk++; if (c.status.includes('Legal Action')) legal++; }
+                    return match;
+                });
+
+                const statTotal = document.getElementById('stat-total');
+                const statRisk = document.getElementById('stat-risk');
+                const statLegal = document.getElementById('stat-legal');
+                if (statTotal) statTotal.innerText = total;
+                if (statRisk) statRisk.innerText = risk;
+                if (statLegal) statLegal.innerText = legal;
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:#9ca3af">No records found.</td></tr>`;
+                    loadFollowUps(); return;
+                }
+
+                filtered.forEach((c, idx) => {
+                    let badgeClass = 'badge badge-normal';
+                    if (c.status.includes('High Risk')) badgeClass = 'badge badge-risk';
+                    if (c.status.includes('Legal Action')) badgeClass = 'badge badge-legal';
+                    if (c.status === 'Loan Closed') badgeClass = 'badge badge-closed';
+
+                    const amt = 'LKR ' + c.loanAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const tr = document.createElement('tr');
+                    tr.style.cursor = 'pointer';
+                    tr.onclick = () => window.navigate(`customer-detail.html?accountNo=${c.accountNo}`);
+                    tr.innerHTML = `
+                        <td style="text-align:center" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="customer-check" data-account="${c.accountNo}" onchange="updateBulkSelection()">
+                        </td>
+                        <td style="text-align:center;color:#9ca3af;font-size:0.8rem">${idx + 1}</td>
+                        <td style="font-weight:700;color:#1e1b4b">${c.accountNo}</td>
+                        <td style="font-weight:500">${c.name}</td>
+                        <td>
+                            <div style="font-weight:600;color:#1e1b4b">${amt}</div>
+                            <div style="font-size:0.75rem;color:#6b7280">${c.category} &bull; ${c.interestRate}% Int.</div>
+                        </td>
+                        <td><span class="${badgeClass}">${c.status}</span></td>
+                        <td style="text-align:right">
+                            <button onclick="handleDeleteLocal(event, '${c.accountNo}')"
+                                style="padding:6px 8px;border-radius:8px;color:#ef4444;background:#fee2e2;border:none;cursor:pointer;opacity:1;transition:all .2s;margin-right:4px"
+                                class="row-action-btn" title="Delete Customer">
+                                <i data-lucide="trash-2" style="width:15px;height:15px"></i>
+                            </button>
+                            <button onclick="window.navigate('customer-detail.html?accountNo=${c.accountNo}')"
+                                style="padding:6px 8px;border-radius:8px;color:#7c3aed;background:#f5f3ff;border:none;cursor:pointer;opacity:1;transition:all .2s"
+                                class="row-action-btn" title="View Profile">
+                                <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
+                            </button>
+                        </td>`;
+                    tbody.appendChild(tr);
+                });
+
+                loadFollowUps();
+                lucide.createIcons();
+                updateBulkSelection();
+            }
+
+            // ---- Bulk Actions ----
+            function updateBulkSelection() {
+                const checks = document.querySelectorAll('.customer-check:checked');
+                const bar = document.getElementById('bulkActionBar');
+                const countText = document.getElementById('bulkCountText');
+                if (!bar || !countText) return;
+
+                if (checks.length > 0) {
+                    bar.classList.remove('hidden');
+                    bar.classList.add('flex');
+                    countText.innerText = `${checks.length} selected`;
                 } else {
-                    alert("Failed to delete customer.");
+                    bar.classList.add('hidden');
+                    bar.classList.remove('flex');
                 }
             }
-        }
 
-        document.getElementById('searchInput').addEventListener('input', () => loadTableData());
+            function goToBulkMessenger() {
+                const checks = document.querySelectorAll('.customer-check:checked');
+                const accounts = Array.from(checks).map(c => c.getAttribute('data-account'));
+                if (accounts.length > 0) {
+                    localStorage.setItem('selected_bulk_accounts', JSON.stringify(accounts));
+                } else {
+                    localStorage.removeItem('selected_bulk_accounts');
+                }
+                window.navigate('bulk-messenger.html');
+            }
 
-        async function handleBulkAction(type) {
-            const checks = document.querySelectorAll('.customer-check:checked');
-            const accounts = Array.from(checks).map(c => c.getAttribute('data-account'));
-            const customers = await getAllCustomers();
-            const selected = customers.filter(c => accounts.includes(c.accountNo));
-
-            if (selected.length === 0) return;
-            const template = document.getElementById('bulkTemplate').value;
-
-            if (confirm(`Send bulk ${type.toUpperCase()} messages to ${selected.length} customers?`)) {
-                for (const c of selected) {
-                    if (!c.phone) continue;
-                    const cleanPhone = c.phone.replace(/\D/g, '');
-                    const bankContact = "0372260658";
-
-                    let messageText = "";
-                    if (type === 'whatsapp') {
-                        if (template === 'legal') {
-                            messageText = `*Final Legal Notice (අවසාන නීති නිවේදනය)*\n\nDear ${c.name},\nThis is a final warning regarding your significantly overdue loan account *${c.accountNo}*. Despite previous reminders, you have failed to settle the outstanding amount. Please be advised that if payment is not received within two days, we will have to initiate formal legal action through the Cooperative Commissioner without further notice. This may result in additional costs and legal complications for you.\n\nImmediate contact is required: ${bankContact} Galapitiyagama Sanasa Bank.`;
-                        } else {
-                            messageText = `*Loan Recovery Reminder*\n\nDear ${c.name},\nThis is a friendly reminder regarding your loan account *${c.accountNo}* at Galapitiyagama Sanasa Bank.\n\nFor more information, contact us: ${bankContact}\n\nThank you.`;
-                        }
-                        const message = encodeURIComponent(messageText);
-                        window.open(`https://wa.me/${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=${message}`, '_blank');
+            async function handleDeleteLocal(event, accountNo) {
+                event.stopPropagation();
+                if (confirm("Are you sure you want to delete this customer? This will move them to the Recycle Bin.")) {
+                    const success = await deleteCustomer(accountNo);
+                    if (success) {
+                        loadTableData();
                     } else {
-                        if (template === 'legal') {
-                            messageText = `FINAL WARNING: Dear ${c.name}, Your loan ${c.accountNo} is overdue. If not settled in 2 days, legal action will be taken through Cooperative Commissioner. Call: ${bankContact}`;
-                        } else {
-                            messageText = `Loan Reminder: Dear ${c.name}, Reminder for loan ${c.accountNo}. Please settle overdue payments soon. Call: ${bankContact} GSCS Bank.`;
-                        }
-                        const message = encodeURIComponent(messageText);
-                        const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
-                        window.open(`sms:${cleanPhone}${separator}body=${message}`, '_blank');
+                        alert("Failed to delete customer.");
                     }
-                    // Small delay to prevent browser blocking
-                    await new Promise(r => setTimeout(r, 600));
                 }
             }
-        }
 
-        async function loadFollowUps() {
-            const pending = await getPendingFollowUps();
-            const container = document.getElementById('followUpContainer');
-            document.getElementById('followUpCount').innerText = `${pending.length} Due`;
+            async function handleBulkAction(type) {
+                const checks = document.querySelectorAll('.customer-check:checked');
+                const accounts = Array.from(checks).map(c => c.getAttribute('data-account'));
+                const customers = await getAllCustomers();
+                const selected = customers.filter(c => accounts.includes(c.accountNo));
 
-            if (pending.length === 0) {
-                container.innerHTML = `<div style="color:#9ca3af;font-size:0.875rem;text-align:center;padding:16px;font-style:italic">No follow-ups due today or prior.</div>`;
-                return;
+                if (selected.length === 0) return;
+                const template = document.getElementById('bulkTemplate').value;
+
+                if (confirm(`Send bulk ${type.toUpperCase()} messages to ${selected.length} customers?`)) {
+                    for (const c of selected) {
+                        if (!c.phone) continue;
+                        const cleanPhone = c.phone.replace(/\D/g, '');
+                        const bankContact = "0372260658";
+
+                        let messageText = "";
+                        if (type === 'whatsapp') {
+                            if (template === 'legal') {
+                                messageText = `*Final Legal Notice (අවසාන නීති නිවේදනය)*\n\nDear ${c.name},\nThis is a final warning regarding your significantly overdue loan account *${c.accountNo}*. Despite previous reminders, you have failed to settle the outstanding amount. Please be advised that if payment is not received within two days, we will have to initiate formal legal action through the Cooperative Commissioner without further notice. This may result in additional costs and legal complications for you.\n\nImmediate contact is required: ${bankContact} Galapitiyagama Sanasa Bank.`;
+                            } else {
+                                messageText = `*Loan Recovery Reminder*\n\nDear ${c.name},\nThis is a friendly reminder regarding your loan account *${c.accountNo}* at Galapitiyagama Sanasa Bank.\n\nFor more information, contact us: ${bankContact}\n\nThank you.`;
+                            }
+                            const message = encodeURIComponent(messageText);
+                            window.open(`https://wa.me/${cleanPhone.startsWith('0') ? '94' + cleanPhone.substring(1) : cleanPhone}?text=${message}`, '_blank');
+                        } else {
+                            if (template === 'legal') {
+                                messageText = `FINAL WARNING: Dear ${c.name}, Your loan ${c.accountNo} is overdue. If not settled in 2 days, legal action will be taken through Cooperative Commissioner. Call: ${bankContact}`;
+                            } else {
+                                messageText = `Loan Reminder: Dear ${c.name}, Reminder for loan ${c.accountNo}. Please settle overdue payments soon. Call: ${bankContact} GSCS Bank.`;
+                            }
+                            const message = encodeURIComponent(messageText);
+                            const separator = (navigator.userAgent.match(/iPhone/i) || navigator.userAgent.match(/iPod/i)) ? '&' : '?';
+                            window.open(`sms:${cleanPhone}${separator}body=${message}`, '_blank');
+                        }
+                        await new Promise(r => setTimeout(r, 600));
+                    }
+                }
             }
-            container.innerHTML = '';
-            pending.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
 
-            for (const action of pending) {
-                const customer = await getCustomerByAccountNo(action.customerAccountNo);
-                const custName = customer ? customer.name : 'Unknown';
-                const followDateObj = new Date(action.followUpDate);
-                const isPast = followDateObj < new Date(new Date().setHours(0, 0, 0, 0));
-                const chipStyle = isPast
-                    ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3'
-                    : 'background:#fffbeb;color:#b45309;border:1px solid #fde68a';
-                const chipText = isPast ? '⚠ Overdue: ' + action.followUpDate : '● Due Today: ' + action.followUpDate;
-                const cardClass = isPast ? 'followup-card overdue' : 'followup-card today';
+            async function loadFollowUps() {
+                const pending = await getPendingFollowUps();
+                const container = document.getElementById('followUpContainer');
+                const countEl = document.getElementById('followUpCount');
+                if (countEl) countEl.innerText = `${pending.length} Due`;
 
-                const el = document.createElement('div');
-                el.className = cardClass;
-                el.onclick = () => window.location.href = `customer-detail.html?accountNo=${action.customerAccountNo}`;
-                el.innerHTML = `
-                    <div style="background:#ede9fe;border-radius:10px;padding:10px;color:#7c3aed;flex-shrink:0">
-                        <i data-lucide="calendar-clock" style="width:20px;height:20px"></i>
-                    </div>
-                    <div style="flex:1">
-                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
-                            <h4 style="font-weight:700;font-size:0.875rem;color:#1e1b4b">${custName} <span style="color:#9ca3af;font-weight:500">(${action.customerAccountNo})</span></h4>
-                            <span style="font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:999px;${chipStyle}">${chipText}</span>
+                if (!container) return;
+                if (pending.length === 0) {
+                    container.innerHTML = `<div style="color:#9ca3af;font-size:0.875rem;text-align:center;padding:16px;font-style:italic">No follow-ups due today or prior.</div>`;
+                    return;
+                }
+                container.innerHTML = '';
+                pending.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate));
+
+                for (const action of pending) {
+                    const customer = await getCustomerByAccountNo(action.customerAccountNo);
+                    const custName = customer ? customer.name : 'Unknown';
+                    const followDateObj = new Date(action.followUpDate);
+                    const isPast = followDateObj < new Date(new Date().setHours(0, 0, 0, 0));
+                    const chipStyle = isPast
+                        ? 'background:#fff1f2;color:#be123c;border:1px solid #fecdd3'
+                        : 'background:#fffbeb;color:#b45309;border:1px solid #fde68a';
+                    const chipText = isPast ? '⚠ Overdue: ' + action.followUpDate : '● Due Today: ' + action.followUpDate;
+                    const cardClass = isPast ? 'followup-card overdue' : 'followup-card today';
+
+                    const el = document.createElement('div');
+                    el.className = cardClass;
+                    el.onclick = () => window.navigate(`customer-detail.html?accountNo=${action.customerAccountNo}`);
+                    el.innerHTML = `
+                        <div style="background:#ede9fe;border-radius:10px;padding:10px;color:#7c3aed;flex-shrink:0">
+                            <i data-lucide="calendar-clock" style="width:20px;height:20px"></i>
                         </div>
-                        <p style="font-size:0.8rem;color:#6b7280"><span style="font-weight:600;color:#1e1b4b">Type:</span> ${action.actionType}</p>
-                        ${action.response ? `<p style="font-size:0.8rem;color:#6b7280;font-style:italic">"${action.response}"</p>` : ''}
-                    </div>
-                    <button onclick="dismissFollowUp(event,${action.id})" title="Dismiss"
-                        style="background:none;border:none;cursor:pointer;color:#d1d5db;padding:6px;border-radius:8px;transition:all .2s;flex-shrink:0"
-                        onmouseover="this.style.color='#e11d48';this.style.background='#fff1f2'"
-                        onmouseout="this.style.color='#d1d5db';this.style.background='none'">
-                        <i data-lucide="check-circle" style="width:20px;height:20px"></i>
-                    </button>`;
-                container.appendChild(el);
+                        <div style="flex:1">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+                                <h4 style="font-weight:700;font-size:0.875rem;color:#1e1b4b">${custName} <span style="color:#9ca3af;font-weight:500">(${action.customerAccountNo})</span></h4>
+                                <span style="font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:999px;${chipStyle}">${chipText}</span>
+                            </div>
+                            <p style="font-size:0.8rem;color:#6b7280"><span style="font-weight:600;color:#1e1b4b">Type:</span> ${action.actionType}</p>
+                            ${action.response ? `<p style="font-size:0.8rem;color:#6b7280;font-style:italic">"${action.response}"</p>` : ''}
+                        </div>
+                        <button onclick="dismissFollowUp(event,${action.id})" title="Dismiss"
+                            style="background:none;border:none;cursor:pointer;color:#d1d5db;padding:6px;border-radius:8px;transition:all .2s;flex-shrink:0"
+                            onmouseover="this.style.color='#e11d48';this.style.background='#fff1f2'"
+                            onmouseout="this.style.color='#d1d5db';this.style.background='none'">
+                            <i data-lucide="check-circle" style="width:20px;height:20px"></i>
+                        </button>`;
+                    container.appendChild(el);
+                }
+                lucide.createIcons();
             }
-            lucide.createIcons();
-        }
 
-        async function dismissFollowUp(event, actionId) {
-            event.stopPropagation();
-            if (confirm("Dismiss this reminder?")) {
-                const success = await clearFollowUp(actionId);
-                if (success) loadFollowUps();
-                else alert("Failed to dismiss.");
+            async function dismissFollowUp(event, actionId) {
+                event.stopPropagation();
+                if (confirm("Dismiss this reminder?")) {
+                    const success = await clearFollowUp(actionId);
+                    if (success) loadFollowUps();
+                    else alert("Failed to dismiss.");
+                }
             }
-        }
 
-        document.getElementById('searchInput').addEventListener('input', e => loadTableData(e.target.value));
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => loadTableData());
+            }
 
-        function updateTime() {
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const dateEl = document.getElementById('currentDate');
-            const timeEl = document.getElementById('currentTime');
-            if (dateEl) dateEl.innerText = dateStr;
-            if (timeEl) timeEl.innerText = timeStr;
-        }
-        setInterval(updateTime, 1000);
+            function updateTime() {
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const dateEl = document.getElementById('currentDate');
+                const timeEl = document.getElementById('currentTime');
+                if (dateEl) dateEl.innerText = dateStr;
+                if (timeEl) timeEl.innerText = timeStr;
+            }
+            setInterval(updateTime, 1000);
 
-        window.initPage = () => {
-            updateTime();
-            checkFirestoreHealth(); // Check if DB is locked
-            setTimeout(() => loadTableData(), 100);
-        };
-    </script>
+            window.initPage = () => {
+                updateTime();
+                checkFirestoreHealth();
+                setTimeout(() => loadTableData(), 100);
+            };
+        </script>
+    </main>
+
+    <script src="js/app.js?v=3.5"></script>
 </body>
-
-</html>
 
 
 

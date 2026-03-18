@@ -113,109 +113,124 @@
                 <!-- Data populated here -->
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                window.initPage = () => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    if (sessionStorage.getItem('lrms_role') === 'admin') {
+                        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+                    }
+                    setTimeout(fetchAndGroupCategories, 150);
+                };
+
+                window.fetchAndGroupCategories = async function() {
+                    try {
+                        const allCust = await getAllCustomers();
+                        const activeCust = allCust.filter(c => c.status !== 'Loan Closed');
+                        const grouped = {};
+
+                        activeCust.forEach(c => {
+                            const cat = c.category || 'Uncategorized';
+                            if (!grouped[cat]) {
+                                grouped[cat] = {
+                                    name: cat,
+                                    count: 0,
+                                    totalAmount: 0,
+                                    customers: []
+                                };
+                            }
+                            grouped[cat].count += 1;
+                            grouped[cat].totalAmount += (c.loanAmount || 0);
+                            grouped[cat].customers.push(c);
+                        });
+                        renderCategories(Object.values(grouped));
+                    } catch (err) { console.error(err); }
+                }
+
+                window.renderCategories = function(catArray) {
+                    const ld = document.getElementById('loading');
+                    if (ld) ld.classList.add('hidden');
+                    const grid = document.getElementById('categoriesGrid');
+                    if (!grid) return;
+                    grid.classList.remove('hidden');
+                    grid.innerHTML = '';
+
+                    if (catArray.length === 0) {
+                        grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:60px;text-align:center;color:#9ca3af;font-style:italic">No active loans found.</div>`;
+                        return;
+                    }
+
+                    // Sort by highest value 
+                    catArray.sort((a, b) => b.totalAmount - a.totalAmount);
+
+                    catArray.forEach(cat => {
+                        const colors = ['violet', 'amber', 'emerald', 'red'];
+                        const color = colors[cat.name.length % colors.length];
+
+                        const preview = cat.customers.slice(0, 3).map(c => `
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                                <div style="width:4px;height:4px;border-radius:50%;background:var(--violet-400)"></div>
+                                <div style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                    \${c.name} <span style="opacity:0.6">(\${c.accountNo})</span>
+                                </div>
+                            </div>`).join('');
+
+                        const hiddenCount = cat.count > 3 ? `<div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;margin-top:8px;padding-left:12px">+ \${cat.count - 3} more...</div>` : '';
+
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.style.cursor = 'pointer';
+                        card.onclick = () => {
+                            if (typeof window.navigate === 'function') window.navigate('index.html');
+                            else window.location.href = `index.html`;
+                        };
+
+                        card.innerHTML = `
+                            <div class="card-header" style="border-bottom:none;padding-bottom:0">
+                                <div>
+                                    <h3 style="font-size:1.1rem;font-weight:800;color:var(--text-primary)">\${cat.name}</h3>
+                                    <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:700;color:var(--text-secondary);margin-top:4px">
+                                        <i data-lucide="users" style="width:14px;height:14px"></i> \${cat.count} Customers
+                                    </div>
+                                </div>
+                                <div class="stat-icon \${color}" style="width:48px;height:48px;border-radius:14px">
+                                    <i data-lucide="layers" style="width:24px;height:24px"></i>
+                                </div>
+                            </div>
+                            <div class="card-body" style="padding-top:10px">
+                                <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">
+                                    <p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:2px">Total Exposure</p>
+                                    <p style="font-family:'Poppins',sans-serif;font-size:1.25rem;font-weight:800;color:var(--text-primary)">
+                                        LKR \${cat.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                </div>
+                                <div style="padding-left:4px">
+                                    \${preview}
+                                    \${hiddenCount}
+                                </div>
+                            </div>
+                            <div style="background:var(--violet-50);padding:10px 24px;display:flex;align-items:center;justify-content:flex-end;font-size:0.8rem;font-weight:700;color:var(--violet-700);border-top:1px solid var(--violet-100)">
+                                See Dashboard <i data-lucide="arrow-right" style="width:14px;height:14px;margin-left:6px"></i>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        window.initPage = () => {
-            lucide.createIcons();
-            if (sessionStorage.getItem('lrms_role') === 'admin') {
-                document.getElementById('adminMenuLink')?.classList.remove('hidden');
-                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
-            }
-            setTimeout(fetchAndGroupCategories, 150);
-        };
 
-        async function fetchAndGroupCategories() {
-            try {
-                const allCust = await getAllCustomers();
-                const activeCust = allCust.filter(c => c.status !== 'Loan Closed');
-                const grouped = {};
-
-                activeCust.forEach(c => {
-                    const cat = c.category || 'Uncategorized';
-                    if (!grouped[cat]) {
-                        grouped[cat] = {
-                            name: cat,
-                            count: 0,
-                            totalAmount: 0,
-                            customers: []
-                        };
-                    }
-                    grouped[cat].count += 1;
-                    grouped[cat].totalAmount += (c.loanAmount || 0);
-                    grouped[cat].customers.push(c);
-                });
-                renderCategories(Object.values(grouped));
-            } catch (err) { console.error(err); }
-        }
-
-        function renderCategories(catArray) {
-            document.getElementById('loading').classList.add('hidden');
-            const grid = document.getElementById('categoriesGrid');
-            grid.classList.remove('hidden');
-            grid.innerHTML = '';
-
-            if (catArray.length === 0) {
-                grid.innerHTML = `<div class="card" style="grid-column:1/-1;padding:60px;text-align:center;color:#9ca3af;font-style:italic">No active loans found.</div>`;
-                return;
-            }
-
-            // Sort by highest value 
-            catArray.sort((a, b) => b.totalAmount - a.totalAmount);
-
-            catArray.forEach(cat => {
-                const colors = ['violet', 'amber', 'emerald', 'red'];
-                const color = colors[cat.name.length % colors.length];
-
-                const preview = cat.customers.slice(0, 3).map(c => `
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                        <div style="width:4px;height:4px;border-radius:50%;background:var(--violet-400)"></div>
-                        <div style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                            ${c.name} <span style="opacity:0.6">(${c.accountNo})</span>
-                        </div>
-                    </div>`).join('');
-
-                const hiddenCount = cat.count > 3 ? `<div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;margin-top:8px;padding-left:12px">+ ${cat.count - 3} more...</div>` : '';
-
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.style.cursor = 'pointer';
-                card.onclick = () => window.location.href = `index.html`;
-
-                card.innerHTML = `
-                    <div class="card-header" style="border-bottom:none;padding-bottom:0">
-                        <div>
-                            <h3 style="font-size:1.1rem;font-weight:800;color:var(--text-primary)">${cat.name}</h3>
-                            <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:700;color:var(--text-secondary);margin-top:4px">
-                                <i data-lucide="users" style="width:14px;height:14px"></i> ${cat.count} Customers
-                            </div>
-                        </div>
-                        <div class="stat-icon ${color}" style="width:48px;height:48px;border-radius:14px">
-                            <i data-lucide="layers" style="width:24px;height:24px"></i>
-                        </div>
-                    </div>
-                    <div class="card-body" style="padding-top:10px">
-                        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">
-                            <p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:2px">Total Exposure</p>
-                            <p style="font-family:'Poppins',sans-serif;font-size:1.25rem;font-weight:800;color:var(--text-primary)">
-                                LKR ${cat.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                        <div style="padding-left:4px">
-                            ${preview}
-                            ${hiddenCount}
-                        </div>
-                    </div>
-                    <div style="background:var(--violet-50);padding:10px 24px;display:flex;align-items:center;justify-content:flex-end;font-size:0.8rem;font-weight:700;color:var(--violet-700);border-top:1px solid var(--violet-100)">
-                        See Dashboard <i data-lucide="arrow-right" style="width:14px;height:14px;margin-left:6px"></i>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-            lucide.createIcons();
-        }
-    </script>
 </body>
 
 </html>

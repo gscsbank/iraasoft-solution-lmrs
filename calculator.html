@@ -194,42 +194,63 @@
                 </p>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                window.initPage = () => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    // Check for admin role
+                    if (sessionStorage.getItem('lrms_role') === 'admin') {
+                        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+                    }
+
+                    const savedSettingsStr = localStorage.getItem('lrms_settings');
+                    if (savedSettingsStr) {
+                        try {
+                            const s = JSON.parse(savedSettingsStr);
+                            if (s.bankName) {
+                                const v = document.getElementById('sidebarVersion');
+                                if (v) v.innerText = s.bankName + ' v1.0';
+                            }
+                        } catch(e) {}
+                    }
+                };
+
+                window.calculate = function() {
+                    const ii = document.getElementById('interestInput');
+                    const pr = document.getElementById('penaltyResult');
+                    if (!ii || !pr) return;
+
+                    const interest = parseFloat(ii.value) || 0;
+                    // Formula: interest * 2 / 20 (which is 0.1 * interest)
+                    const penalty = (interest * 2) / 20;
+
+                    pr.innerText = penalty.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+
+                window.resetCalc = function() {
+                    const ii = document.getElementById('interestInput');
+                    if (ii) {
+                        ii.value = '';
+                        calculate();
+                    }
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script>
-        lucide.createIcons();
 
-        function calculate() {
-            const interest = parseFloat(document.getElementById('interestInput').value) || 0;
-            // Formula: interest * 2 / 20 (which is 0.1 * interest)
-            const penalty = (interest * 2) / 20;
-
-            document.getElementById('penaltyResult').innerText = penalty.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function resetCalc() {
-            document.getElementById('interestInput').value = '';
-            calculate();
-        }
-
-        // Check for admin role
-        if (sessionStorage.getItem('lrms_role') === 'admin') {
-            document.getElementById('adminMenuLink')?.classList.remove('hidden');
-            document.getElementById('settingsMenuLink')?.classList.remove('hidden');
-        }
-
-        const savedSettingsStr = localStorage.getItem('lrms_settings');
-        if (savedSettingsStr) {
-            const s = JSON.parse(savedSettingsStr);
-            if (s.bankName) {
-                const v = document.getElementById('sidebarVersion');
-                if (v) v.innerText = s.bankName + ' v1.0';
-            }
-        }
-    </script>
 </body>
 
 </html>

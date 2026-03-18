@@ -330,94 +330,126 @@
                 </div>
             </div>
         </div>
+            </div>
+        </div>
+
+        <script>
+            {
+                const printDateItem = document.getElementById('printDate');
+                if (printDateItem) {
+                    printDateItem.innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+                }
+
+                window.initPage = () => {
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    if (sessionStorage.getItem('lrms_role') === 'admin') {
+                        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+                        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+                    }
+                    setTimeout(() => loadReport(), 150);
+                };
+
+                window.loadReport = async function() {
+                    const rf = document.getElementById('reportFilter');
+                    const rm = document.getElementById('reportMonth');
+                    const pfl = document.getElementById('printFilterLabel');
+                    const pml = document.getElementById('printMonthLabel');
+
+                    if (!rf || !rm || !pfl || !pml) return;
+
+                    const fVal = rf.value;
+                    const mVal = rm.value;
+                    pfl.innerText = fVal;
+                    pml.innerText = mVal ? new Date(mVal + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'All Time';
+
+                    let customers = await getAllCustomers();
+                    if (fVal !== 'All') customers = customers.filter(c => c.status === fVal);
+                    if (mVal) customers = customers.filter(c => c.statusDate && c.statusDate.startsWith(mVal));
+
+                    const tbody = document.getElementById('reportTableBody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    const footer = document.getElementById('summaryFooter');
+
+                    if (customers.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:80px;color:#9ca3af;font-style:italic">No matching records.</td></tr>`;
+                        if (footer) footer.classList.add('hidden');
+                        return;
+                    }
+
+                    let totalPrinciple = 0;
+                    let totalRisk = 0;
+                    let totalSettled = 0;
+
+                    customers.forEach((c, idx) => {
+                        totalPrinciple += c.loanAmount;
+                        if (c.status.includes('High Risk')) totalRisk++;
+                        if (c.status === 'Loan Closed') totalSettled++;
+
+                        let badgeStyle = 'background:#f1f5f9;color:#475569';
+                        if (c.status.includes('High Risk')) badgeStyle = 'background:#fffbeb;color:#b45309';
+                        if (c.status.includes('Legal')) badgeStyle = 'background:#fff1f2;color:#be123c';
+                        if (c.status === 'Loan Closed') badgeStyle = 'background:#f0fdf4;color:#15803d';
+
+                        const amt = 'LKR ' + c.loanAmount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                        const sDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                        const guar = [c.guarantor1, c.guarantor2].filter(Boolean).join(' | ');
+
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="text-align:center;color:var(--text-muted)">${idx + 1}</td>
+                            <td>
+                                <div style="font-weight:800;color:var(--text-primary)">${c.name}</div>
+                                <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${c.accountNo}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight:800;color:var(--text-primary)">${amt}</div>
+                                <div style="font-size:0.7rem;color:var(--text-muted)">${c.category} &bull; ${c.interestRate}%</div>
+                            </td>
+                            <td style="font-size:0.75rem;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${guar}">
+                                ${guar || 'None'}
+                            </td>
+                            <td style="text-align:center;font-weight:600;color:var(--text-primary)">${sDate}</td>
+                            <td style="text-align:center">
+                                <span class="badge" style="${badgeStyle};padding:4px 10px;font-size:0.65rem;border:none">
+                                    ${c.status}
+                                </span>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    const totalRecordsElem = document.getElementById('totalRecords');
+                    if (totalRecordsElem) totalRecordsElem.innerText = customers.length;
+                    
+                    const sumAccountsElem = document.getElementById('sumAccounts');
+                    if (sumAccountsElem) sumAccountsElem.innerText = customers.length;
+
+                    const sumPrincipleElem = document.getElementById('sumPrinciple');
+                    if (sumPrincipleElem) sumPrincipleElem.innerText = 'LKR ' + totalPrinciple.toLocaleString();
+
+                    const sumRiskElem = document.getElementById('sumRisk');
+                    if (sumRiskElem) sumRiskElem.innerText = totalRisk;
+
+                    const sumSettledElem = document.getElementById('sumSettled');
+                    if (sumSettledElem) sumSettledElem.innerText = totalSettled;
+
+                    const rsc = document.getElementById('reportSummaryCards');
+                    if (rsc) rsc.classList.remove('hidden');
+
+                    if (footer) footer.classList.remove('hidden');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                }
+
+                // Initial run if already loaded
+                if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                    window.initPage();
+                }
+            }
+        </script>
     </main>
 
-    <script src="js/app.js?v=3.5"></script>
-    <script>
-        document.getElementById('printDate').innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
-        window.initPage = () => {
-            lucide.createIcons();
-            if (sessionStorage.getItem('lrms_role') === 'admin') {
-                document.getElementById('adminMenuLink')?.classList.remove('hidden');
-                document.getElementById('settingsMenuLink')?.classList.remove('hidden');
-            }
-            setTimeout(() => loadReport(), 150);
-        };
-
-        async function loadReport() {
-            const fVal = document.getElementById('reportFilter').value;
-            const mVal = document.getElementById('reportMonth').value;
-            document.getElementById('printFilterLabel').innerText = fVal;
-            document.getElementById('printMonthLabel').innerText = mVal ? new Date(mVal + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'All Time';
-
-            let customers = await getAllCustomers();
-            if (fVal !== 'All') customers = customers.filter(c => c.status === fVal);
-            if (mVal) customers = customers.filter(c => c.statusDate && c.statusDate.startsWith(mVal));
-
-            const tbody = document.getElementById('reportTableBody');
-            tbody.innerHTML = '';
-            const footer = document.getElementById('summaryFooter');
-
-            if (customers.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:80px;color:#9ca3af;font-style:italic">No matching records.</td></tr>`;
-                footer.classList.add('hidden');
-                return;
-            }
-
-            let totalPrinciple = 0;
-            let totalRisk = 0;
-            let totalSettled = 0;
-
-            customers.forEach((c, idx) => {
-                totalPrinciple += c.loanAmount;
-                if (c.status.includes('High Risk')) totalRisk++;
-                if (c.status === 'Loan Closed') totalSettled++;
-
-                let badgeStyle = 'background:#f1f5f9;color:#475569';
-                if (c.status.includes('High Risk')) badgeStyle = 'background:#fffbeb;color:#b45309';
-                if (c.status.includes('Legal')) badgeStyle = 'background:#fff1f2;color:#be123c';
-                if (c.status === 'Loan Closed') badgeStyle = 'background:#f0fdf4;color:#15803d';
-
-                const amt = 'LKR ' + c.loanAmount.toLocaleString(undefined, { minimumFractionDigits: 2 });
-                const sDate = c.statusDate ? new Date(c.statusDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
-                const guar = [c.guarantor1, c.guarantor2].filter(Boolean).join(' | ');
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align:center;color:var(--text-muted)">${idx + 1}</td>
-                    <td>
-                        <div style="font-weight:800;color:var(--text-primary)">${c.name}</div>
-                        <div style="font-size:0.75rem;color:var(--text-secondary)">Acc: ${c.accountNo}</div>
-                    </td>
-                    <td>
-                        <div style="font-weight:800;color:var(--text-primary)">${amt}</div>
-                        <div style="font-size:0.7rem;color:var(--text-muted)">${c.category} &bull; ${c.interestRate}%</div>
-                    </td>
-                    <td style="font-size:0.75rem;color:var(--text-secondary);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${guar}">
-                        ${guar || 'None'}
-                    </td>
-                    <td style="text-align:center;font-weight:600;color:var(--text-primary)">${sDate}</td>
-                    <td style="text-align:center">
-                        <span class="badge" style="${badgeStyle};padding:4px 10px;font-size:0.65rem;border:none">
-                            ${c.status}
-                        </span>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('totalRecords').innerText = customers.length;
-            document.getElementById('sumAccounts').innerText = customers.length;
-            document.getElementById('sumPrinciple').innerText = 'LKR ' + totalPrinciple.toLocaleString();
-            document.getElementById('sumRisk').innerText = totalRisk;
-            document.getElementById('sumSettled').innerText = totalSettled;
-            document.getElementById('reportSummaryCards').classList.remove('hidden');
-
-            footer.classList.remove('hidden');
-            lucide.createIcons();
-        }
-    </script>
 </body>
 
 </html>
