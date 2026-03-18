@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LRMS Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.4"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>`r`n    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="js/firebase-config.js?v=3.3"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.5"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="js/firebase-config.js?v=3.5"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
@@ -65,10 +66,10 @@
             <a href="recycle-bin.html" class="nav-link">
                 <i data-lucide="trash-2"></i> Recycle Bin
             </a>
-            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="users"></i> User Management
             </a>
-            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="settings"></i> Settings
             </a>
         </nav>
@@ -367,7 +368,7 @@
     </div>
 
     <!-- App Logic -->
-    <script src="js/app.js?v=3.4"></script>
+    <script src="js/app.js?v=3.5"></script>
     <script>
         lucide.createIcons();
 
@@ -625,39 +626,6 @@
 
         document.getElementById('searchInput').addEventListener('input', e => loadTableData(e.target.value));
 
-        async function handleBackup() {
-            const dataStr = await exportDatabase();
-            if (!dataStr) { alert("Failed to create backup."); return; }
-            const dateStr = new Date().toISOString().split('T')[0];
-            const defaultFilename = `lrms_backup_${dateStr}.json`;
-            try {
-                if (window.showSaveFilePicker) {
-                    const fh = await window.showSaveFilePicker({ suggestedName: defaultFilename, types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }] });
-                    const w = await fh.createWritable(); await w.write(dataStr); await w.close(); return;
-                }
-            } catch (err) { if (err.name !== 'AbortError') console.error(err); else return; }
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = defaultFilename; a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        async function handleRestore(event) {
-            const file = event.target.files[0]; if (!file) return;
-            if (confirm("WARNING: This will PERMANENTLY ERASE ALL CURRENT CLOUD DATA and replace it with this backup. Proceed?")) {
-                const reader = new FileReader();
-                reader.onload = async e => {
-                    const cleared = await clearDatabase();
-                    if (!cleared) { alert("Failed to clear existing data. Restore aborted."); return; }
-
-                    const success = await importDatabase(e.target.result);
-                    if (success) { alert("Restored Successfully!"); window.location.reload(); }
-                };
-                reader.readAsText(file);
-            }
-            event.target.value = '';
-        }
-
         function updateTime() {
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -673,11 +641,12 @@
             updateTime();
             checkFirestoreHealth(); // Check if DB is locked
             setTimeout(() => loadTableData(), 100);
-        }; window.initPage();
+        };
     </script>
 </body>
 
 </html>
+
 
 
 

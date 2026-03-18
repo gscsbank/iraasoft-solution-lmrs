@@ -1,5 +1,24 @@
 // js/app.js
-console.log("LRMS Script Version: 3.3 - OPTIMIZED");
+console.log("LRMS Script Version: 3.5 - CACHE_ENABLED");
+
+// Global Data Cache
+window.lrmsCache = {
+    customers: null,
+    actions: {}, // AccountNo -> Actions[]
+    lastUpdated: null
+};
+
+function invalidateCache(type = 'all', accountNo = null) {
+    if (type === 'all' || type === 'customers') {
+        window.lrmsCache.customers = null;
+    }
+    if (accountNo) {
+        delete window.lrmsCache.actions[accountNo];
+    } else if (type === 'all' || type === 'actions') {
+        window.lrmsCache.actions = {};
+    }
+    window.lrmsCache.lastUpdated = null;
+}
 
 // UI Helper for status updates
 function setRestoreStatus(msg, isError = false) {
@@ -109,6 +128,49 @@ window.handleLogout = function () {
     window.location.replace('login.html');
 };
 
+// Global Backup/Restore Logic
+window.handleBackup = async function() {
+    const dataStr = await exportDatabase();
+    if (!dataStr) { alert("Failed to create backup."); return; }
+    const dateStr = new Date().toISOString().split('T')[0];
+    const defaultFilename = `lrms_backup_${dateStr}.json`;
+    try {
+        if (window.showSaveFilePicker) {
+            const fh = await window.showSaveFilePicker({ suggestedName: defaultFilename, types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }] });
+            const w = await fh.createWritable(); await w.write(dataStr); await w.close(); return;
+        }
+    } catch (err) { if (err.name !== 'AbortError') console.error(err); else return; }
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = defaultFilename; a.click();
+    URL.revokeObjectURL(url);
+};
+
+window.handleRestore = async function(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (confirm("WARNING: This will PERMANENTLY ERASE ALL CURRENT CLOUD DATA and replace it with this backup. Proceed?")) {
+        const reader = new FileReader();
+        reader.onload = async e => {
+            const cleared = await clearDatabase();
+            if (!cleared) { alert("Failed to clear existing data. Restore aborted."); return; }
+
+            const success = await importDatabase(e.target.result);
+            if (success) { alert("Restored Successfully!"); window.location.reload(); }
+        };
+        reader.readAsText(file);
+    }
+    event.target.value = '';
+};
+
+// Admin Menu Visibility
+window.checkAdmin = function() {
+    const role = sessionStorage.getItem('lrms_role');
+    if (role === 'admin') {
+        document.getElementById('adminMenuLink')?.classList.remove('hidden');
+        document.getElementById('settingsMenuLink')?.classList.remove('hidden');
+    }
+};
+
 // Initialize Firebase is handled in firebase-config.js
 // The global 'db' variable refers to firebase.firestore()
 
@@ -128,6 +190,7 @@ async function addCustomer(customerData) {
             return false;
         }
         await db.collection("customers").add(customerData);
+        invalidateCache('customers');
         await logActivity("Add Customer", `Added customer: ${customerData.name} (${customerData.accountNo})`, "success");
         alert("Successfully saved to Cloud!");
         return true;
@@ -139,13 +202,22 @@ async function addCustomer(customerData) {
 }
 
 // Helper Function: Get all customers
-async function getAllCustomers() {
+async function getAllCustomers(forceRefresh = false) {
+    if (!forceRefresh && window.lrmsCache.customers) {
+        console.log("Cache Hit: getAllCustomers");
+        return window.lrmsCache.customers;
+    }
+
     try {
-        // Fetch all and filter locally to include records that don't have isDeleted field yet
+        console.log("Fetching Customers from Firestore...");
         const snapshot = await db.collection("customers").get();
-        return snapshot.docs
+        const customers = snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .filter(c => c.isDeleted !== true && c.isDeleted !== "true");
+        
+        window.lrmsCache.customers = customers;
+        window.lrmsCache.lastUpdated = new Date();
+        return customers;
     } catch (error) {
         console.error("Error fetching customers:", error);
         return [];
@@ -154,36 +226,27 @@ async function getAllCustomers() {
 
 // Helper Function: Get customer by Account No
 async function getCustomerByAccountNo(accountNo) {
-    if (!accountNo) { console.warn("getCustomerByAccountNo: empty acc"); return null; }
+    if (!accountNo) return null;
+    const cleanAcc = accountNo.toString().trim();
+
+    // Check Cache
+    if (window.lrmsCache.customers) {
+        const found = window.lrmsCache.customers.find(c => 
+            (c.accountNo || "").toString().trim() === cleanAcc || 
+            Number(c.accountNo) === Number(cleanAcc)
+        );
+        if (found) return found;
+    }
+
     try {
-        const cleanAcc = accountNo.toString().trim();
-
-        // Try multiple query types to handle legacy data (String vs Number)
-        // 1. Try exact string match
+        console.log("Fetching Customer from Firestore:", cleanAcc);
         let snapshot = await db.collection("customers").where('accountNo', '==', cleanAcc).get();
-
-        // 2. If not found and it's numeric, try number match
         if (snapshot.empty && !isNaN(cleanAcc) && cleanAcc !== "") {
-            const numAcc = Number(cleanAcc);
-            snapshot = await db.collection("customers").where('accountNo', '==', numAcc).get();
-
-            // 3. If still empty, try string without leading zeros
-            if (snapshot.empty) {
-                snapshot = await db.collection("customers").where('accountNo', '==', numAcc.toString()).get();
-            }
+            snapshot = await db.collection("customers").where('accountNo', '==', Number(cleanAcc)).get();
         }
 
-        if (snapshot.empty) {
-            console.warn(`Customer not found with acc: ${cleanAcc}`);
-            return null;
-        }
-
-        // Filter out soft-deleted ones locally
-        const docInfo = snapshot.docs.find(doc => {
-            const d = doc.data();
-            return d.isDeleted !== true && d.isDeleted !== "true";
-        });
-
+        if (snapshot.empty) return null;
+        const docInfo = snapshot.docs.find(doc => !doc.data().isDeleted);
         if (!docInfo) return null;
         return { id: docInfo.id, ...docInfo.data() };
     } catch (error) {
@@ -196,6 +259,7 @@ async function getCustomerByAccountNo(accountNo) {
 async function addAction(actionData) {
     try {
         await db.collection("actions").add(actionData);
+        invalidateCache('actions', actionData.customerAccountNo);
         await logActivity("Log Action", `Logged ${actionData.actionType} for Acc: ${actionData.customerAccountNo}`, "info");
         console.log("Action recorded successfully!");
         return true;
@@ -206,25 +270,28 @@ async function addAction(actionData) {
 }
 
 // Helper Function: Get actions for a customer
-async function getCustomerActions(accountNo) {
+async function getCustomerActions(accountNo, forceRefresh = false) {
     if (!accountNo) return [];
-    try {
-        const cleanAcc = accountNo.toString().trim();
-        let snapshot = await db.collection("actions")
-            .where('customerAccountNo', '==', cleanAcc)
-            .get();
+    const cleanAcc = accountNo.toString().trim();
+    
+    if (!forceRefresh && window.lrmsCache.actions[cleanAcc]) {
+        console.log("Cache Hit: getCustomerActions", cleanAcc);
+        return window.lrmsCache.actions[cleanAcc];
+    }
 
-        // Try numeric query if string query empty
+    try {
+        console.log("Fetching Actions from Firestore:", cleanAcc);
+        let snapshot = await db.collection("actions").where('customerAccountNo', '==', cleanAcc).get();
         if (snapshot.empty && !isNaN(cleanAcc) && cleanAcc !== "") {
-            snapshot = await db.collection("actions")
-                .where('customerAccountNo', '==', Number(cleanAcc))
-                .get();
+            snapshot = await db.collection("actions").where('customerAccountNo', '==', Number(cleanAcc)).get();
         }
 
         let actions = snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .filter(a => !a.isDeleted);
         actions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        window.lrmsCache.actions[cleanAcc] = actions;
         return actions;
     } catch (error) {
         console.error("Error fetching actions:", error);
@@ -269,6 +336,7 @@ async function updateCustomer(accountNo, updatedData) {
         const customer = await getCustomerByAccountNo(accountNo);
         if (customer) {
             await db.collection("customers").doc(customer.id).update(updatedData);
+            invalidateCache('customers');
             return true;
         }
         return false;
@@ -724,6 +792,110 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ps) ps.innerText = s.systemName;
         }
     }
+    // Call page-specific init if exists
+    if (typeof window.initPage === 'function') {
+        window.initPage();
+    }
+
+    // ---- SPA-lite Navigation System ----
+    window.navigate = async function(url, pushState = true) {
+        if (!url || url.startsWith('http') || url.startsWith('#')) return;
+        
+        const mainContent = document.querySelector('.main-content');
+        if (!mainContent) { window.location.href = url; return; }
+
+        // Start fade-out
+        mainContent.classList.add('fade-out');
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Page not found");
+            const html = await response.text();
+            
+            // Create a temporary element to parse HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newMain = doc.querySelector('.main-content');
+            
+            if (!newMain) { window.location.href = url; return; }
+
+            // Small delay for animation
+            await new Promise(r => setTimeout(r, 200));
+
+            // Swap content
+            mainContent.innerHTML = newMain.innerHTML;
+            mainContent.className = newMain.className; // Keep styles
+            mainContent.classList.remove('fade-out');
+            mainContent.classList.add('fade-in');
+
+            // Update Page Title
+            document.title = doc.title;
+
+            // Update active link in sidebar
+            const currentPath = url.split('/').pop() || 'index.html';
+            document.querySelectorAll('.nav-link').forEach(l => {
+                const linkHref = l.getAttribute('href');
+                if (linkHref === currentPath) l.classList.add('active');
+                else l.classList.remove('active');
+            });
+
+            // Pre-cleanup for safe execution
+            window.initPage = null;
+
+            // Extract and Execute Scripts
+            const scripts = newMain.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                document.body.appendChild(newScript);
+                // Clean up immediately after execution if it's inline
+                if (!newScript.src) newScript.remove();
+            });
+
+            // Re-initialize for the new content
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            if (typeof window.checkAdmin === 'function') window.checkAdmin();
+            if (typeof window.initPage === 'function') window.initPage();
+
+            // Handle History
+            if (pushState) {
+                history.pushState({ url }, doc.title, url);
+            }
+
+            // Scroll to top
+            window.scrollTo(0, 0);
+
+        } catch (err) {
+            console.error("Navigation failed:", err);
+            window.location.href = url; // Fallback to normal navigation
+        }
+    };
+
+    // Global Link Interceptor
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+
+        const href = link.getAttribute('href');
+        const target = link.getAttribute('target');
+        
+        // Handle standard internal links
+        if (href && !href.startsWith('http') && !href.startsWith('#') && !target && !link.onclick) {
+            e.preventDefault();
+            window.navigate(href);
+        }
+    });
+
+    // Handle Browser Back/Forward
+    window.addEventListener('popstate', (e) => {
+        if (e.state && e.state.url) {
+            window.navigate(e.state.url, false);
+        } else {
+            // If no state, we might be back at initial page
+            window.location.reload();
+        }
+    });
 });
 
 // ---- Activity Logging System ----
@@ -777,3 +949,6 @@ async function clearAllLogs() {
         return false;
     }
 }
+
+// Startup
+checkAdmin();

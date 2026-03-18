@@ -81,16 +81,32 @@
             <a href="recycle-bin.html" class="nav-link">
                 <i data-lucide="trash-2"></i> Recycle Bin
             </a>
-            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="users"></i> User Management
             </a>
-            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="settings"></i> Settings
             </a>
         </nav>
 
-        <div class="sidebar-footer">
-            <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+        <div class="sidebar-bottom">
+            <button onclick="handleBackup()" class="sidebar-bottom-btn">
+                <i data-lucide="download-cloud" style="width:16px;height:16px;color:#6ee7b7;flex-shrink:0"></i>
+                Backup Data
+            </button>
+            <div style="position:relative">
+                <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="handleRestore(event)">
+                <button onclick="document.getElementById('restoreFile').click()" class="sidebar-bottom-btn">
+                    <i data-lucide="upload-cloud" style="width:16px;height:16px;color:#fcd34d;flex-shrink:0"></i>
+                    Restore Data
+                </button>
+            </div>
+            <div class="sidebar-footer">
+                <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
+                <button onclick="handleLogout()" class="logout-btn" title="Logout">
+                    <i data-lucide="log-out" style="width:16px;height:16px"></i>
+                </button>
+            </div>
         </div>
     </aside>
 
@@ -214,5 +230,6 @@
 </body>
 
 </html>
+
 
 

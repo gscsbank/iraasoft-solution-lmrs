@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Profile - LRMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.4"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>`r`n    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="js/firebase-config.js?v=3.3"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.5"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="js/firebase-config.js?v=3.5"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -179,16 +180,17 @@
             }
 
             .signature-section {
-                margin-top: 50px;
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 50px;
+                margin-top: 80px;
+                display: flex !important;
+                justify-content: space-between !important;
+                gap: 50px !important;
                 text-align: center;
             }
 
             .signature-box {
+                flex: 1;
                 border-top: 1px solid #000;
-                padding-top: 8px;
+                padding-top: 10px;
             }
 
             /* Fix for the hidden "white on white" text */
@@ -259,19 +261,30 @@
             <a href="recycle-bin.html" class="nav-link">
                 <i data-lucide="trash-2"></i> Recycle Bin
             </a>
-            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="users"></i> User Management
             </a>
-            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="settings"></i> Settings
             </a>
         </nav>
 
         <div class="sidebar-bottom">
+            <button onclick="handleBackup()" class="sidebar-bottom-btn">
+                <i data-lucide="download-cloud" style="width:16px;height:16px;color:#6ee7b7;flex-shrink:0"></i>
+                Backup Data
+            </button>
+            <div style="position:relative">
+                <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="handleRestore(event)">
+                <button onclick="document.getElementById('restoreFile').click()" class="sidebar-bottom-btn">
+                    <i data-lucide="upload-cloud" style="width:16px;height:16px;color:#fcd34d;flex-shrink:0"></i>
+                    Restore Data
+                </button>
+            </div>
             <div class="sidebar-footer">
                 <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
                 <button onclick="handleLogout()" class="logout-btn" title="Logout">
-                    <i data-lucide="log-out"></i>
+                    <i data-lucide="log-out" style="width:16px;height:16px"></i>
                 </button>
             </div>
         </div>
@@ -745,7 +758,7 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=3.4"></script>
+    <script src="js/app.js?v=3.5"></script>
     <script>
         document.getElementById('actionDate').valueAsDate = new Date();
         const pdElem = document.getElementById('printDate');
@@ -753,12 +766,14 @@
 
         let currentAccountNo = null;
 
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.initPage = async () => {
             const params = new URLSearchParams(window.location.search);
             currentAccountNo = params.get('accountNo');
             if (!currentAccountNo) { window.location.href = "index.html"; return; }
-            setTimeout(() => loadCustomerDetails(), 100);
-        });
+            
+            await loadCustomerDetails();
+            await loadDocuments();
+        };
 
         async function loadCustomerDetails() {
             const customer = await getCustomerByAccountNo(currentAccountNo);
@@ -1102,12 +1117,7 @@
             reader.readAsDataURL(file);
         });
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            // wait for details to load then docs
-            setTimeout(() => {
-                loadDocuments();
-            }, 500);
-        });
+
 
         // ---- Calculator Logic ----
         function calculatePenalty() {
@@ -1187,5 +1197,6 @@
 </body>
 
 </html>
+
 
 

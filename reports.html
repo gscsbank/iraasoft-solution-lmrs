@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports - LRMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.4"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>`r`n    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="js/firebase-config.js?v=3.3"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.5"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="js/firebase-config.js?v=3.5"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -67,15 +68,18 @@
             .premium-table td {
                 border: 1px solid #000 !important;
                 color: #000 !important;
+                padding: 8px !important;
+                vertical-align: middle !important;
             }
 
             .badge {
-                border: 1px solid #000 !important;
+                border: none !important;
                 background: transparent !important;
                 color: #000 !important;
-                padding: 2px 4px !important;
-                -webkit-filter: grayscale(100%);
-                filter: grayscale(100%);
+                padding: 0 !important;
+                font-weight: 700 !important;
+                text-transform: uppercase !important;
+                font-size: 8pt !important;
             }
 
             .main-content {
@@ -158,19 +162,30 @@
             <a href="recycle-bin.html" class="nav-link">
                 <i data-lucide="trash-2"></i> Recycle Bin
             </a>
-            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="users"></i> User Management
             </a>
-            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden" class="nav-link hidden">
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden">
                 <i data-lucide="settings"></i> Settings
             </a>
         </nav>
 
         <div class="sidebar-bottom">
+            <button onclick="handleBackup()" class="sidebar-bottom-btn">
+                <i data-lucide="download-cloud" style="width:16px;height:16px;color:#6ee7b7;flex-shrink:0"></i>
+                Backup Data
+            </button>
+            <div style="position:relative">
+                <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="handleRestore(event)">
+                <button onclick="document.getElementById('restoreFile').click()" class="sidebar-bottom-btn">
+                    <i data-lucide="upload-cloud" style="width:16px;height:16px;color:#fcd34d;flex-shrink:0"></i>
+                    Restore Data
+                </button>
+            </div>
             <div class="sidebar-footer">
                 <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
                 <button onclick="handleLogout()" class="logout-btn" title="Logout">
-                    <i data-lucide="log-out"></i>
+                    <i data-lucide="log-out" style="width:16px;height:16px"></i>
                 </button>
             </div>
         </div>
@@ -179,15 +194,15 @@
     <!-- Main Content -->
     <main class="main-content">
         <!-- Header -->
-        <header class="top-header">
-            <button class="mobile-toggle" onclick="toggleSidebar()">
+        <header class="top-header no-print">
+            <button class="mobile-toggle no-print" onclick="toggleSidebar()">
                 <i data-lucide="menu"></i>
             </button>
             <div>
                 <h2>System Reports</h2>
                 <p>Generate analytical summaries and progress tracking</p>
             </div>
-            <button onclick="window.print()" class="btn btn-slate">
+            <button onclick="window.print()" class="btn btn-slate no-print">
                 <i data-lucide="printer"></i> Print Report
             </button>
         </header>
@@ -208,9 +223,9 @@
                     <p style="font-size:0.75rem">Generated On: <span id="printDate"></span></p>
                 </div>
             </div>
-            <div style="margin-top:15px;display:flex;gap:30px;font-size:0.8rem;font-weight:700">
-                <div>Status: <span id="printFilterLabel" style="color:var(--violet-700)"></span></div>
-                <div>Target Month: <span id="printMonthLabel" style="color:var(--violet-700)"></span></div>
+            <div style="margin-top:15px;display:flex;gap:30px;font-size:0.85rem;font-weight:700;color:#000">
+                <div>Status: <span id="printFilterLabel" style="text-decoration: underline"></span></div>
+                <div>Target Month: <span id="printMonthLabel" style="text-decoration: underline"></span></div>
             </div>
         </div>
 
@@ -314,7 +329,7 @@
         </div>
     </main>
 
-    <script src="js/app.js?v=3.4"></script>
+    <script src="js/app.js?v=3.5"></script>
     <script>
         document.getElementById('printDate').innerText = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -325,7 +340,7 @@
                 document.getElementById('settingsMenuLink')?.classList.remove('hidden');
             }
             setTimeout(() => loadReport(), 150);
-        });
+        };
 
         async function loadReport() {
             const fVal = document.getElementById('reportFilter').value;
@@ -403,6 +418,7 @@
 </body>
 
 </html>
+
 
 
 

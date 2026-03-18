@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendar - LRMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.4"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>`r`n    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="js/firebase-config.js?v=3.3"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js?v=3.5"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="js/firebase-config.js?v=3.5"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -118,13 +119,34 @@
             <a href="activity-log.html" class="nav-link">
                 <i data-lucide="list"></i> Activity Log
             </a>
+            <hr class="nav-divider">
+            <a href="recycle-bin.html" class="nav-link">
+                <i data-lucide="trash-2"></i> Recycle Bin
+            </a>
+            <a href="admin.html" id="adminMenuLink" class="nav-link admin-only hidden">
+                <i data-lucide="users"></i> User Management
+            </a>
+            <a href="settings.html" id="settingsMenuLink" class="nav-link admin-only hidden">
+                <i data-lucide="settings"></i> Settings
+            </a>
         </nav>
 
         <div class="sidebar-bottom">
+            <button onclick="handleBackup()" class="sidebar-bottom-btn">
+                <i data-lucide="download-cloud" style="width:16px;height:16px;color:#6ee7b7;flex-shrink:0"></i>
+                Backup Data
+            </button>
+            <div style="position:relative">
+                <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="handleRestore(event)">
+                <button onclick="document.getElementById('restoreFile').click()" class="sidebar-bottom-btn">
+                    <i data-lucide="upload-cloud" style="width:16px;height:16px;color:#fcd34d;flex-shrink:0"></i>
+                    Restore Data
+                </button>
+            </div>
             <div class="sidebar-footer">
                 <span class="sidebar-version" id="sidebarVersion">GSCS BANK v1.0</span>
                 <button onclick="handleLogout()" class="logout-btn" title="Logout">
-                    <i data-lucide="log-out"></i>
+                    <i data-lucide="log-out" style="width:16px;height:16px"></i>
                 </button>
             </div>
         </div>
@@ -138,7 +160,7 @@
                 <i data-lucide="menu"></i>
             </button>
             <div>
-                <h2>Loan Follow-up Calendar</h2>
+                <h2 id="currentMonthYear">Loan Follow-up Calendar</h2>
                 <p>Scheduled recovery actions and promises</p>
             </div>
             <div style="display:flex;gap:10px">
@@ -166,14 +188,14 @@
         </div>
     </main>
 
-    <script src="js/app.js?v=3.4"></script>
+    <script src="js/app.js?v=3.5"></script>
     <script>
         let currentYear, currentMonth;
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
         window.initPage = () => {
             initCalendar();
-        });
+        };
 
         async function initCalendar() {
             const now = new Date();
@@ -256,6 +278,7 @@
 </body>
 
 </html>
+
 
 
 
