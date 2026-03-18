@@ -747,8 +747,17 @@ async function getActivityLogs(limitCount = 100) {
             .get();
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        console.error("Error fetching logs:", error);
-        return [];
+        console.warn("Initial log query failed (likely missing index). Attempting fallback...", error);
+        // Fallback: Fetch without orderBy or limit, then sort and slice locally
+        try {
+            const snapshot = await db.collection("activity_logs").get();
+            let logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            return logs.slice(0, limitCount);
+        } catch (fallbackError) {
+            console.error("Fallback error fetching logs:", fallbackError);
+            return [];
+        }
     }
 }
 
